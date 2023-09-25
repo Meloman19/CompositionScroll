@@ -1,0 +1,259 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:AvaloniaCompositionScrollExample.ViewModels"
+			 xmlns:scroll="using:AvaloniaCompositionScrollExample.Scroll"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="AvaloniaCompositionScrollExample.Views.MainView"
+             x:DataType="vm:MainViewModel">
+	<UserControl.Resources>
+		<ControlTheme x:Key="{x:Type TextBox}" TargetType="TextBox">
+			<Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
+			<Setter Property="CaretBrush" Value="{DynamicResource TextControlForeground}" />
+			<Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrush}" />
+			<Setter Property="SelectionBrush" Value="{DynamicResource TextControlSelectionHighlightColor}" />
+			<Setter Property="BorderThickness" Value="{DynamicResource TextControlBorderThemeThickness}" />
+			<Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
+			<Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
+			<Setter Property="MinHeight" Value="{DynamicResource TextControlThemeMinHeight}" />
+			<Setter Property="MinWidth" Value="{DynamicResource TextControlThemeMinWidth}" />
+			<Setter Property="Padding" Value="{DynamicResource TextControlThemePadding}" />
+			<Setter Property="FocusAdorner" Value="{x:Null}" />
+			<Setter Property="ScrollViewer.IsScrollChainingEnabled" Value="True" />
+			<Setter Property="ContextFlyout" Value="{StaticResource DefaultTextBoxContextFlyout}" />
+			<Setter Property="Template">
+				<ControlTemplate>
+					<DataValidationErrors>
+						<Panel>
+							<Border
+							  Name="PART_BorderElement"
+							  Background="{TemplateBinding Background}"
+							  BorderBrush="{TemplateBinding BorderBrush}"
+							  BorderThickness="{TemplateBinding BorderThickness}"
+							  CornerRadius="{TemplateBinding CornerRadius}"
+							  MinWidth="{TemplateBinding MinWidth}"
+							  MinHeight="{TemplateBinding MinHeight}">
+							</Border>
+
+							<Border
+							  Margin="{TemplateBinding BorderThickness}">
+								<Grid ColumnDefinitions="Auto,*,Auto" >
+									<ContentPresenter Grid.Column="0"
+													  Grid.ColumnSpan="1"
+													  Content="{TemplateBinding InnerLeftContent}"/>
+									<DockPanel x:Name="PART_InnerDockPanel"
+											   Grid.Column="1"
+											   Grid.ColumnSpan="1"
+											   Cursor="IBeam"
+											   Margin="{TemplateBinding Padding}">
+										<TextBlock Name="PART_FloatingWatermark"
+												   Foreground="{DynamicResource SystemAccentColor}"
+												   FontSize="{TemplateBinding FontSize}"
+												   IsVisible="False"
+												   Text="{TemplateBinding Watermark}"
+												   DockPanel.Dock="Top" />
+										<ScrollViewer Name="PART_ScrollViewer"
+													  HorizontalScrollBarVisibility="{TemplateBinding (ScrollViewer.HorizontalScrollBarVisibility)}"
+													  VerticalScrollBarVisibility="{TemplateBinding (ScrollViewer.VerticalScrollBarVisibility)}"
+													  IsScrollChainingEnabled="{TemplateBinding (ScrollViewer.IsScrollChainingEnabled)}"
+													  AllowAutoHide="{TemplateBinding (ScrollViewer.AllowAutoHide)}"
+													  BringIntoViewOnFocusChange="{TemplateBinding (ScrollViewer.BringIntoViewOnFocusChange)}">
+											<scroll:CompositionScrollDecorator>
+												<Panel>
+													<TextBlock Name="PART_Watermark"
+															Opacity="0.5"
+															Text="{TemplateBinding Watermark}"
+															TextAlignment="{TemplateBinding TextAlignment}"
+															TextWrapping="{TemplateBinding TextWrapping}"
+															IsVisible="{TemplateBinding Text, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+															HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+															VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+													<TextPresenter Name="PART_TextPresenter"
+																  Text="{TemplateBinding Text, Mode=TwoWay}"
+																  CaretIndex="{TemplateBinding CaretIndex}"
+																  SelectionStart="{TemplateBinding SelectionStart}"
+																  SelectionEnd="{TemplateBinding SelectionEnd}"
+																  TextAlignment="{TemplateBinding TextAlignment}"
+																  TextWrapping="{TemplateBinding TextWrapping}"
+																  LineHeight="{TemplateBinding LineHeight}"
+																  LetterSpacing="{TemplateBinding LetterSpacing}"
+																  PasswordChar="{TemplateBinding PasswordChar}"
+																  RevealPassword="{TemplateBinding RevealPassword}"
+																  SelectionBrush="{TemplateBinding SelectionBrush}"
+																  SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+																  CaretBrush="{TemplateBinding CaretBrush}"
+																  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+																  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+												</Panel>
+											</scroll:CompositionScrollDecorator>
+										</ScrollViewer>
+									</DockPanel>
+									<ContentPresenter Grid.Column="2" Grid.ColumnSpan="1" Content="{TemplateBinding InnerRightContent}"/>
+								</Grid>
+							</Border>
+						</Panel>
+					</DataValidationErrors>
+				</ControlTemplate>
+			</Setter>
+
+			<!-- Disabled State -->
+			<Style Selector="^:disabled">
+				<Setter Property="Foreground" Value="{DynamicResource TextControlForegroundDisabled}" />
+
+				<Style Selector="^ /template/ Border#PART_BorderElement">
+					<Setter Property="Background" Value="{DynamicResource TextControlBackgroundDisabled}" />
+					<Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrushDisabled}" />
+				</Style>
+
+				<Style Selector="^ /template/ TextBlock#PART_Watermark, ^ /template/ TextBlock#PART_FloatingWatermark">
+					<Setter Property="Foreground" Value="{DynamicResource TextControlPlaceholderForegroundDisabled}" />
+				</Style>
+			</Style>
+
+			<!-- PointerOver State-->
+			<Style Selector="^:pointerover">
+				<Setter Property="Foreground" Value="{DynamicResource TextControlForegroundPointerOver}" />
+
+				<Style Selector="^ /template/ Border#PART_BorderElement">
+					<Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrushPointerOver}"/>
+					<Setter Property="Background" Value="{DynamicResource TextControlBackgroundPointerOver}" />
+				</Style>
+
+				<Style Selector="^ /template/ TextBlock#PART_Watermark">
+					<Setter Property="Foreground" Value="{DynamicResource TextControlPlaceholderForegroundPointerOver}" />
+				</Style>
+			</Style>
+
+			<!-- Focused State -->
+			<Style Selector="^:focus">
+				<Setter Property="Foreground" Value="{DynamicResource TextControlForegroundFocused}" />
+
+				<Style Selector="^ /template/ TextBlock#PART_Watermark">
+					<Setter Property="Foreground" Value="{DynamicResource TextControlPlaceholderForegroundFocused}" />
+				</Style>
+
+				<Style Selector="^ /template/ Border#PART_BorderElement">
+					<Setter Property="Background" Value="{DynamicResource TextControlBackgroundFocused}"/>
+					<Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrushFocused}"/>
+					<Setter Property="BorderThickness" Value="{DynamicResource TextControlBorderThemeThicknessFocused}" />
+				</Style>
+			</Style>
+
+			<Style Selector="^:error /template/ Border#PART_BorderElement">
+				<Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
+			</Style>
+
+			<Style Selector="^[UseFloatingWatermark=true]:not(:empty) /template/ TextBlock#PART_FloatingWatermark">
+				<Setter Property="IsVisible" Value="True" />
+			</Style>
+
+			<Style Selector="^.revealPasswordButton[AcceptsReturn=False][IsReadOnly=False]:not(TextBox:empty)">
+				<Setter Property="InnerRightContent">
+					<Template>
+						<ToggleButton Theme="{StaticResource FluentTextBoxToggleButton}"
+									  IsChecked="{Binding $parent[TextBox].RevealPassword, Mode=TwoWay}"
+									  ClipToBounds="True">
+							<Panel>
+								<PathIcon Data="{StaticResource PasswordBoxRevealButtonData}"
+										  Height="8" Width="12"
+										  IsVisible="{Binding !$parent[ToggleButton].IsChecked}"/>
+								<PathIcon Data="{StaticResource PasswordBoxHideButtonData}"
+										  Height="12" Width="12"
+										  IsVisible="{Binding $parent[ToggleButton].IsChecked}"/>
+							</Panel>
+						</ToggleButton>
+					</Template>
+				</Setter>
+			</Style>
+
+			<Style Selector="^.clearButton[AcceptsReturn=False][IsReadOnly=False]:focus:not(TextBox:empty)">
+				<Setter Property="InnerRightContent">
+					<Template>
+						<Button Theme="{StaticResource FluentTextBoxButton}"
+								Command="{Binding $parent[TextBox].Clear}"
+								ClipToBounds="True">
+							<PathIcon Data="{StaticResource TextBoxClearButtonData}" Height="10" Width="10"/>
+						</Button>
+					</Template>
+				</Setter>
+			</Style>
+		</ControlTheme>
+	</UserControl.Resources>
+
+	<Design.DataContext>
+		<vm:MainViewModel />
+	</Design.DataContext>
+
+	<Grid ColumnDefinitions="*,*,*"
+		  RowDefinitions="Auto, *"
+		  Background="White">
+		
+		<TextBlock Text="10000 words"
+				   HorizontalAlignment="Center"/>
+
+		<TextBlock Text="1000 items (ItemsRepeater)"
+				   HorizontalAlignment="Center" 
+				   Grid.Column="1"/>
+
+		<TextBlock Text="1000 items (StackPanel)"
+				   HorizontalAlignment="Center"
+				   Grid.Column="2"/>
+		
+		<!--10000 words-->
+		<TextBox Text="{Binding ExampleText}"
+				 TextWrapping="Wrap"
+				 Grid.Row="1"/>
+
+		<!--1000 items-->
+		<ScrollViewer HorizontalScrollBarVisibility="Disabled"
+					  Grid.Row="1"
+					  Grid.Column="1">
+			<scroll:CompositionScrollDecorator>
+				<ItemsRepeater ItemsSource="{Binding ExampleCollection}">
+					<ItemsRepeater.ItemTemplate>
+						<DataTemplate>
+							<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+								<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+							</Border>
+						</DataTemplate>
+					</ItemsRepeater.ItemTemplate>
+
+					<ItemsRepeater.Layout>
+						<StackLayout />
+					</ItemsRepeater.Layout>
+				</ItemsRepeater>
+			</scroll:CompositionScrollDecorator>
+		</ScrollViewer>
+
+		<!--1000 items-->
+		<ItemsControl Grid.Row="1"
+					  Grid.Column="2"
+					  ItemsSource="{Binding ExampleCollection}">
+			<ItemsControl.Template>
+				<ControlTemplate>
+					<ScrollViewer HorizontalScrollBarVisibility="Disabled">
+						<scroll:CompositionScrollDecorator>
+							<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+						</scroll:CompositionScrollDecorator>
+					</ScrollViewer>
+				</ControlTemplate>
+			</ItemsControl.Template>
+
+			<ItemsControl.ItemsPanel>
+				<ItemsPanelTemplate>
+					<StackPanel ClipToBounds="False" />
+				</ItemsPanelTemplate>
+			</ItemsControl.ItemsPanel>
+
+			<ItemsControl.ItemTemplate>
+				<DataTemplate>
+					<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+						<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+					</Border>
+				</DataTemplate>
+			</ItemsControl.ItemTemplate>
+		</ItemsControl>
+	</Grid>
+</UserControl>
