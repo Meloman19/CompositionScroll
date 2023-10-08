@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCompositionScrollExample", "AvaloniaCompositionScrollExample\AvaloniaCompositionScrollExample.csproj", "{734168D8-5301-4BA2-947D-4C182E1C52B3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CompositionScroll.DesktopExample", "CompositionScroll.DesktopExample\CompositionScroll.DesktopExample.csproj", "{3D4F8616-E937-4C9C-A867-8FB710DB53D8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCompositionScrollExample.Desktop", "AvaloniaCompositionScrollExample.Desktop\AvaloniaCompositionScrollExample.Desktop.csproj", "{3D4F8616-E937-4C9C-A867-8FB710DB53D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CompositionScroll", "CompositionScroll\CompositionScroll.csproj", "{2D545229-1EF1-4767-A6C8-419BAD709BEF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{734168D8-5301-4BA2-947D-4C182E1C52B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{734168D8-5301-4BA2-947D-4C182E1C52B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{734168D8-5301-4BA2-947D-4C182E1C52B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{734168D8-5301-4BA2-947D-4C182E1C52B3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3D4F8616-E937-4C9C-A867-8FB710DB53D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3D4F8616-E937-4C9C-A867-8FB710DB53D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3D4F8616-E937-4C9C-A867-8FB710DB53D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3D4F8616-E937-4C9C-A867-8FB710DB53D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D545229-1EF1-4767-A6C8-419BAD709BEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D545229-1EF1-4767-A6C8-419BAD709BEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D545229-1EF1-4767-A6C8-419BAD709BEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D545229-1EF1-4767-A6C8-419BAD709BEF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

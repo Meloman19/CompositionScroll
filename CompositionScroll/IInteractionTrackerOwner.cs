@@ -1,6 +1,6 @@
 ﻿using Avalonia;
 
-namespace AvaloniaCompositionScrollExample.Scroll
+namespace CompositionScroll
 {
     public interface IInteractionTrackerOwner
     {
@@ -9,11 +9,14 @@ namespace AvaloniaCompositionScrollExample.Scroll
 
     public sealed class InteractionTrackerValuesChangedArgs
     {
-        public InteractionTrackerValuesChangedArgs(Vector3D position)
+        public InteractionTrackerValuesChangedArgs(Vector3D position, long requestId)
         {
             Position = position;
+            RequestId = requestId;
         }
 
         public Vector3D Position { get; }
+
+        public long RequestId { get; }
     }
 }

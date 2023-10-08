@@ -1,37 +1,37 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 
-namespace AvaloniaCompositionScrollExample.ViewModels;
-
-public class DataSample : ObservableObject
+namespace CompositionScroll.DesktopExample
 {
-    public string Text { get; set; }
-}
-
-public class MainViewModel : ObservableObject
-{
-    public MainViewModel()
+    public class DataSample : ObservableObject
     {
-        for (int i = 0; i < 1000; i++)
-        {
-            var text = i.ToString();
-            if (i % 2 == 0)
-            {
-                text += "\n" + text;
-            }
-
-            var data = new DataSample()
-            {
-                Text = text,
-            };
-            ExampleCollection.Add(data);
-        }
+        public string Text { get; set; }
     }
 
-    public ObservableCollection<DataSample> ExampleCollection { get; } = new ObservableCollection<DataSample>();
+    public class MainViewModel : ObservableObject
+    {
+        public MainViewModel()
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                var text = i.ToString();
+                if (i % 2 == 0)
+                {
+                    text += "\n" + text;
+                }
 
-    public string ExampleText =>
-@"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer odio mi, pretium a volutpat porttitor, tincidunt et orci. Duis nec arcu eu odio faucibus iaculis eget scelerisque ex. Donec in risus vel dolor lacinia egestas sit amet ut odio. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas fringilla, velit sit amet placerat lacinia, orci tellus dignissim mi, at porta elit justo et velit. Vivamus tristique elit ut orci faucibus euismod. Pellentesque faucibus nunc eu elementum pharetra. In hac habitasse platea dictumst. Fusce lacus mauris, tincidunt vitae arcu quis, aliquam pretium est. Praesent ante orci, elementum id nulla non, molestie iaculis orci. Nam non gravida diam. Curabitur erat sem, feugiat sed ullamcorper vitae, finibus at ipsum. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum eros magna, varius ut tristique at, porttitor nec erat. Integer id facilisis orci, non bibendum metus. Donec fermentum lectus eu est viverra, at maximus felis maximus.
+                var data = new DataSample()
+                {
+                    Text = text,
+                };
+                ExampleCollection.Add(data);
+            }
+        }
+
+        public ObservableCollection<DataSample> ExampleCollection { get; } = new ObservableCollection<DataSample>();
+
+        public string ExampleText =>
+    @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer odio mi, pretium a volutpat porttitor, tincidunt et orci. Duis nec arcu eu odio faucibus iaculis eget scelerisque ex. Donec in risus vel dolor lacinia egestas sit amet ut odio. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas fringilla, velit sit amet placerat lacinia, orci tellus dignissim mi, at porta elit justo et velit. Vivamus tristique elit ut orci faucibus euismod. Pellentesque faucibus nunc eu elementum pharetra. In hac habitasse platea dictumst. Fusce lacus mauris, tincidunt vitae arcu quis, aliquam pretium est. Praesent ante orci, elementum id nulla non, molestie iaculis orci. Nam non gravida diam. Curabitur erat sem, feugiat sed ullamcorper vitae, finibus at ipsum. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum eros magna, varius ut tristique at, porttitor nec erat. Integer id facilisis orci, non bibendum metus. Donec fermentum lectus eu est viverra, at maximus felis maximus.
 
 Donec rhoncus tempor lacus sit amet hendrerit. Curabitur tempor, nunc quis laoreet sodales, ex mauris dignissim libero, sit amet ultricies erat ipsum vitae mi. Vestibulum aliquam quam in urna ultricies efficitur. Proin consectetur pellentesque ex ac molestie. Donec id velit pellentesque enim mattis placerat et non ex. Nunc commodo mi eros, nec iaculis sem imperdiet vitae. Interdum et malesuada fames ac ante ipsum primis in faucibus. Sed justo leo, tempus vel sem eget, pulvinar dictum nunc. Integer sed felis eget magna mollis luctus sed ac elit. Vestibulum sed finibus velit. Etiam egestas nisi vitae laoreet aliquet. Pellentesque laoreet non felis eu posuere. Donec facilisis mi eu sagittis sagittis.
 
@@ -248,5 +248,5 @@ Nam cursus ipsum nibh. Duis ligula turpis, efficitur a eleifend pellentesque, pe
 Donec a tellus erat. Praesent at elit quis lorem cursus condimentum vitae id arcu. In imperdiet, magna ac hendrerit aliquet, nisl risus venenatis nunc, nec semper ex urna ut lorem. Suspendisse commodo leo eros, vel iaculis magna laoreet quis. Nunc iaculis euismod elit et ornare. Pellentesque fermentum mauris aliquam, maximus neque eget, imperdiet risus. Quisque lectus sapien, volutpat at elit in, pretium vestibulum lorem. Sed ut nisi id erat porttitor fermentum. In dapibus orci urna, nec sollicitudin metus viverra vitae. Curabitur neque eros, accumsan non dapibus quis, tristique at magna. Ut egestas dolor sapien, quis mollis sapien feugiat a. Cras tincidunt lectus sit amet hendrerit commodo. Proin sagittis eros at ipsum porta, eu iaculis leo facilisis. Vivamus commodo scelerisque ipsum, et elementum risus maximus non.
 
 Maecenas sed dui arcu. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla quam ex, condimentum et vehicula in, mattis.";
-
+    }
 }

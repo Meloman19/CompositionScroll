@@ -1,0 +1,1071 @@
+﻿using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
+using Avalonia.Input;
+using Avalonia.Input.GestureRecognizers;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Reactive;
+using Avalonia.Rendering.Composition;
+using Avalonia.Rendering.Composition.Animations;
+using Avalonia.Utilities;
+using Avalonia.VisualTree;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace CompositionScroll
+{
+    /// <summary>
+    /// Presents a scrolling view of content inside a <see cref="ScrollViewer"/>.
+    /// </summary>
+    public sealed class CompositionScrollContentPresenter : ContentPresenter, IScrollable, IScrollAnchorProvider, IInteractionTrackerOwner
+    {
+        private const double EdgeDetectionTolerance = 0.1;
+
+        /// <summary>
+        /// Defines the <see cref="CanHorizontallyScroll"/> property.
+        /// </summary>
+        public static readonly StyledProperty<bool> CanHorizontallyScrollProperty =
+            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(CanHorizontallyScroll));
+
+        /// <summary>
+        /// Defines the <see cref="CanVerticallyScroll"/> property.
+        /// </summary>
+        public static readonly StyledProperty<bool> CanVerticallyScrollProperty =
+            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(CanVerticallyScroll));
+
+        /// <summary>
+        /// Defines the <see cref="Extent"/> property.
+        /// </summary>
+        public static readonly DirectProperty<CompositionScrollContentPresenter, Size> ExtentProperty =
+            ScrollViewer.ExtentProperty.AddOwner<CompositionScrollContentPresenter>(
+                o => o.Extent);
+
+        /// <summary>
+        /// Defines the <see cref="Offset"/> property.
+        /// </summary>
+        public static readonly StyledProperty<Vector> OffsetProperty =
+            ScrollViewer.OffsetProperty.AddOwner<CompositionScrollContentPresenter>(new(coerce: ScrollViewer.CoerceOffset));
+
+        /// <summary>
+        /// Defines the <see cref="Viewport"/> property.
+        /// </summary>
+        public static readonly DirectProperty<CompositionScrollContentPresenter, Size> ViewportProperty =
+            ScrollViewer.ViewportProperty.AddOwner<CompositionScrollContentPresenter>(
+                o => o.Viewport);
+
+        /// <summary>
+        /// Defines the <see cref="HorizontalSnapPointsType"/> property.
+        /// </summary>
+        public static readonly StyledProperty<SnapPointsType> HorizontalSnapPointsTypeProperty =
+            ScrollViewer.HorizontalSnapPointsTypeProperty.AddOwner<CompositionScrollContentPresenter>();
+
+        /// <summary>
+        /// Defines the <see cref="VerticalSnapPointsType"/> property.
+        /// </summary>
+        public static readonly StyledProperty<SnapPointsType> VerticalSnapPointsTypeProperty =
+           ScrollViewer.VerticalSnapPointsTypeProperty.AddOwner<CompositionScrollContentPresenter>();
+
+        /// <summary>
+        /// Defines the <see cref="HorizontalSnapPointsAlignment"/> property.
+        /// </summary>
+        public static readonly StyledProperty<SnapPointsAlignment> HorizontalSnapPointsAlignmentProperty =
+            ScrollViewer.HorizontalSnapPointsAlignmentProperty.AddOwner<CompositionScrollContentPresenter>();
+
+        /// <summary>
+        /// Defines the <see cref="VerticalSnapPointsAlignment"/> property.
+        /// </summary>
+        public static readonly StyledProperty<SnapPointsAlignment> VerticalSnapPointsAlignmentProperty =
+            ScrollViewer.VerticalSnapPointsAlignmentProperty.AddOwner<CompositionScrollContentPresenter>();
+
+        /// <summary>
+        /// Defines the <see cref="IsScrollChainingEnabled"/> property.
+        /// </summary>
+        public static readonly StyledProperty<bool> IsScrollChainingEnabledProperty =
+            ScrollViewer.IsScrollChainingEnabledProperty.AddOwner<CompositionScrollContentPresenter>();
+
+        private InteractionTracker _interactionTracker;
+        private ImplicitAnimationCollection _scrollAnimation;
+        private ExpressionAnimation _offsetAnimation;
+        private bool _compositionUpdate;
+        private long? requestId;
+
+        private bool _arranging;
+        private Size _extent;
+        private Size _viewport;
+        private Dictionary<int, Vector>? _scrollGestureSnapPoints;
+        private HashSet<Control>? _anchorCandidates;
+        private Control? _anchorElement;
+        private Rect _anchorElementBounds;
+        private bool _isAnchorElementDirty;
+        private bool _areVerticalSnapPointsRegular;
+        private bool _areHorizontalSnapPointsRegular;
+        private IReadOnlyList<double>? _horizontalSnapPoints;
+        private double _horizontalSnapPoint;
+        private IReadOnlyList<double>? _verticalSnapPoints;
+        private double _verticalSnapPoint;
+        private double _verticalSnapPointOffset;
+        private double _horizontalSnapPointOffset;
+        private CompositeDisposable? _ownerSubscriptions;
+        private ScrollViewer? _owner;
+        private IScrollSnapPointsInfo? _scrollSnapPointsInfo;
+        private bool _isSnapPointsUpdated;
+
+        /// <summary>
+        /// Initializes static members of the <see cref="CompositionScrollContentPresenter"/> class.
+        /// </summary>
+        static CompositionScrollContentPresenter()
+        {
+            ClipToBoundsProperty.OverrideDefaultValue(typeof(CompositionScrollContentPresenter), true);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CompositionScrollContentPresenter"/> class.
+        /// </summary>
+        public CompositionScrollContentPresenter()
+        {
+            AddHandler(RequestBringIntoViewEvent, BringIntoViewRequested);
+            AddHandler(Gestures.ScrollGestureEvent, OnScrollGesture);
+            AddHandler(Gestures.ScrollGestureEndedEvent, OnScrollGestureEnded);
+            AddHandler(Gestures.ScrollGestureInertiaStartingEvent, OnScrollGestureInertiaStartingEnded);
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the content can be scrolled horizontally.
+        /// </summary>
+        public bool CanHorizontallyScroll
+        {
+            get => GetValue(CanHorizontallyScrollProperty);
+            set => SetValue(CanHorizontallyScrollProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the content can be scrolled horizontally.
+        /// </summary>
+        public bool CanVerticallyScroll
+        {
+            get => GetValue(CanVerticallyScrollProperty);
+            set => SetValue(CanVerticallyScrollProperty, value);
+        }
+
+        /// <summary>
+        /// Gets the extent of the scrollable content.
+        /// </summary>
+        public Size Extent
+        {
+            get => _extent;
+            private set => SetAndRaise(ExtentProperty, ref _extent, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the current scroll offset.
+        /// </summary>
+        public Vector Offset
+        {
+            get => GetValue(OffsetProperty);
+            set => SetValue(OffsetProperty, value);
+        }
+
+        /// <summary>
+        /// Gets the size of the viewport on the scrollable content.
+        /// </summary>
+        public Size Viewport
+        {
+            get => _viewport;
+            private set => SetAndRaise(ViewportProperty, ref _viewport, value);
+        }
+
+        /// <summary>
+        /// Gets or sets how scroll gesture reacts to the snap points along the horizontal axis.
+        /// </summary>
+        public SnapPointsType HorizontalSnapPointsType
+        {
+            get => GetValue(HorizontalSnapPointsTypeProperty);
+            set => SetValue(HorizontalSnapPointsTypeProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets how scroll gesture reacts to the snap points along the vertical axis.
+        /// </summary>
+        public SnapPointsType VerticalSnapPointsType
+        {
+            get => GetValue(VerticalSnapPointsTypeProperty);
+            set => SetValue(VerticalSnapPointsTypeProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets how the existing snap points are horizontally aligned versus the initial viewport.
+        /// </summary>
+        public SnapPointsAlignment HorizontalSnapPointsAlignment
+        {
+            get => GetValue(HorizontalSnapPointsAlignmentProperty);
+            set => SetValue(HorizontalSnapPointsAlignmentProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets how the existing snap points are vertically aligned versus the initial viewport.
+        /// </summary>
+        public SnapPointsAlignment VerticalSnapPointsAlignment
+        {
+            get => GetValue(VerticalSnapPointsAlignmentProperty);
+            set => SetValue(VerticalSnapPointsAlignmentProperty, value);
+        }
+
+        /// <summary>
+        ///  Gets or sets if scroll chaining is enabled. The default value is true.
+        /// </summary>
+        /// <remarks>
+        ///  After a user hits a scroll limit on an element that has been nested within another scrollable element,
+        /// you can specify whether that parent element should continue the scrolling operation begun in its child element.
+        /// This is called scroll chaining.
+        /// </remarks>
+        public bool IsScrollChainingEnabled
+        {
+            get => GetValue(IsScrollChainingEnabledProperty);
+            set => SetValue(IsScrollChainingEnabledProperty, value);
+        }
+
+        /// <inheritdoc/>
+        Control? IScrollAnchorProvider.CurrentAnchor
+        {
+            get
+            {
+                EnsureAnchorElementSelection();
+                return _anchorElement;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to bring a portion of the target visual into view by scrolling the content.
+        /// </summary>
+        /// <param name="target">The target visual.</param>
+        /// <param name="targetRect">The portion of the target visual to bring into view.</param>
+        /// <returns>True if the scroll offset was changed; otherwise false.</returns>
+        public bool BringDescendantIntoView(Visual target, Rect targetRect)
+        {
+            if (Child?.IsEffectivelyVisible != true)
+            {
+                return false;
+            }
+
+            var control = target as Control;
+
+            var transform = target.TransformToVisual(Child);
+
+            if (transform == null)
+            {
+                return false;
+            }
+
+            var rect = targetRect.TransformToAABB(transform.Value);
+            var offset = Offset;
+            var result = false;
+
+            if (rect.Bottom > offset.Y + Viewport.Height)
+            {
+                offset = offset.WithY((rect.Bottom - Viewport.Height) + Child.Margin.Top);
+                result = true;
+            }
+
+            if (rect.Y < offset.Y)
+            {
+                offset = offset.WithY(rect.Y);
+                result = true;
+            }
+
+            if (rect.Right > offset.X + Viewport.Width)
+            {
+                offset = offset.WithX((rect.Right - Viewport.Width) + Child.Margin.Left);
+                result = true;
+            }
+
+            if (rect.X < offset.X)
+            {
+                offset = offset.WithX(rect.X);
+                result = true;
+            }
+
+            if (result)
+            {
+                SetCurrentValue(OffsetProperty, offset);
+            }
+
+            return result;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            AttachToScrollViewer();
+
+            var compositionVisual = ElementComposition.GetElementVisual(this);
+            _interactionTracker = compositionVisual.Compositor.CreateInteractionTracker(this);
+            UpdateScrollAnimation();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            _interactionTracker?.Dispose();
+            _interactionTracker = null;
+            _scrollAnimation = null;
+        }
+
+        /// <summary>
+        /// Locates the first <see cref="ScrollViewer"/> ancestor and binds to it. Properties which have been set through other means are not bound.
+        /// </summary>
+        /// <remarks>
+        /// This method is automatically called when the control is attached to a visual tree.
+        /// </remarks>
+        internal void AttachToScrollViewer()
+        {
+            var owner = this.FindAncestorOfType<ScrollViewer>();
+
+            if (owner == null)
+            {
+                _owner = null;
+                _ownerSubscriptions?.Dispose();
+                _ownerSubscriptions = null;
+                return;
+            }
+
+            if (owner == _owner)
+            {
+                return;
+            }
+
+            _ownerSubscriptions?.Dispose();
+            _owner = owner;
+
+            var subscriptionDisposables = new IDisposable?[]
+            {
+                IfUnset(CanHorizontallyScrollProperty, p => Bind(p, owner.GetObservable(ScrollViewer.HorizontalScrollBarVisibilityProperty, NotDisabled), BindingPriority.Template)),
+                IfUnset(CanVerticallyScrollProperty, p => Bind(p, owner.GetObservable(ScrollViewer.VerticalScrollBarVisibilityProperty, NotDisabled), BindingPriority.Template)),
+                IfUnset(OffsetProperty, p => Bind(p, owner.GetBindingObservable(ScrollViewer.OffsetProperty), BindingPriority.Template)),
+                IfUnset(IsScrollChainingEnabledProperty, p => Bind(p, owner.GetBindingObservable(ScrollViewer.IsScrollChainingEnabledProperty), BindingPriority.Template)),
+                IfUnset(ContentProperty, p => Bind(p, owner.GetBindingObservable(ContentProperty), BindingPriority.Template)),
+            }.Where(d => d != null).Cast<IDisposable>().ToArray();
+
+            _ownerSubscriptions = new CompositeDisposable(subscriptionDisposables);
+
+            static bool NotDisabled(ScrollBarVisibility v) => v != ScrollBarVisibility.Disabled;
+
+            IDisposable? IfUnset<T>(T property, Func<T, IDisposable> func) where T : AvaloniaProperty => IsSet(property) ? null : func(property);
+        }
+
+        /// <inheritdoc/>
+        void IScrollAnchorProvider.RegisterAnchorCandidate(Control element)
+        {
+            if (!this.IsVisualAncestorOf(element))
+            {
+                throw new InvalidOperationException(
+                    "An anchor control must be a visual descendent of the ScrollContentPresenter.");
+            }
+
+            _anchorCandidates ??= new();
+            _anchorCandidates.Add(element);
+            _isAnchorElementDirty = true;
+        }
+
+        /// <inheritdoc/>
+        void IScrollAnchorProvider.UnregisterAnchorCandidate(Control element)
+        {
+            _anchorCandidates?.Remove(element);
+            _isAnchorElementDirty = true;
+
+            if (_anchorElement == element)
+            {
+                _anchorElement = null;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            if (Child == null)
+            {
+                return base.MeasureOverride(availableSize);
+            }
+
+            var constraint = new Size(
+                CanHorizontallyScroll ? double.PositiveInfinity : availableSize.Width,
+                CanVerticallyScroll ? double.PositiveInfinity : availableSize.Height);
+
+            Child.Measure(constraint);
+
+            if (!_isSnapPointsUpdated)
+            {
+                _isSnapPointsUpdated = true;
+                UpdateSnapPoints();
+            }
+
+            return Child.DesiredSize.Constrain(availableSize);
+        }
+
+        /// <inheritdoc/>
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            if (Child == null)
+            {
+                return base.ArrangeOverride(finalSize);
+            }
+
+            return ArrangeWithAnchoring(finalSize);
+        }
+
+        private Size ArrangeWithAnchoring(Size finalSize)
+        {
+            var size = new Size(
+                CanHorizontallyScroll ? Math.Max(Child!.DesiredSize.Width, finalSize.Width) : finalSize.Width,
+                CanVerticallyScroll ? Math.Max(Child!.DesiredSize.Height, finalSize.Height) : finalSize.Height);
+
+            Vector TrackAnchor()
+            {
+                // If we have an anchor and its position relative to Child has changed during the
+                // arrange then that change wasn't just due to scrolling (as scrolling doesn't adjust
+                // relative positions within Child).
+                if (_anchorElement != null &&
+                    TranslateBounds(_anchorElement, Child!, out var updatedBounds) &&
+                    updatedBounds.Position != _anchorElementBounds.Position)
+                {
+                    var offset = updatedBounds.Position - _anchorElementBounds.Position;
+                    return offset;
+                }
+
+                return default;
+            }
+
+            var isAnchoring = Offset.X >= EdgeDetectionTolerance || Offset.Y >= EdgeDetectionTolerance;
+
+            if (isAnchoring)
+            {
+                // Calculate the new anchor element if necessary.
+                EnsureAnchorElementSelection();
+
+                // Do the arrange.
+                ArrangeOverrideImpl(size, -Offset);
+
+                // If the anchor moved during the arrange, we need to adjust the offset and do another arrange.
+                var anchorShift = TrackAnchor();
+
+                if (anchorShift != default)
+                {
+                    var newOffset = Offset + anchorShift;
+                    var newExtent = Extent;
+                    var maxOffset = new Vector(Extent.Width - Viewport.Width, Extent.Height - Viewport.Height);
+
+                    if (newOffset.X > maxOffset.X)
+                    {
+                        newExtent = newExtent.WithWidth(newOffset.X + Viewport.Width);
+                    }
+
+                    if (newOffset.Y > maxOffset.Y)
+                    {
+                        newExtent = newExtent.WithHeight(newOffset.Y + Viewport.Height);
+                    }
+
+                    Extent = newExtent;
+
+                    try
+                    {
+                        _arranging = true;
+                        _compositionUpdate = true;
+                        _interactionTracker?.ShiftPositionBy(new Vector3D(anchorShift.X, anchorShift.Y, 0));
+                        SetCurrentValue(OffsetProperty, newOffset);
+                    }
+                    finally
+                    {
+                        _arranging = false;
+                        _compositionUpdate = false;
+                    }
+
+                    ArrangeOverrideImpl(size, -Offset);
+                }
+            }
+            else
+            {
+                ArrangeOverrideImpl(size, -Offset);
+            }
+
+            Viewport = finalSize;
+            Extent = ComputeExtent(finalSize);
+            _isAnchorElementDirty = true;
+
+            var scrollableHeight = Extent.Height - Viewport.Height;
+            _interactionTracker?.SetMaxPosition(new Vector3D(0, (float)scrollableHeight, 0));
+
+            return finalSize;
+        }
+
+        private Size ComputeExtent(Size viewportSize)
+        {
+            var childMargin = Child!.Margin;
+
+            if (Child.UseLayoutRounding)
+            {
+                var scale = LayoutHelper.GetLayoutScale(Child);
+                childMargin = LayoutHelper.RoundLayoutThickness(childMargin, scale, scale);
+            }
+
+            var extent = Child!.Bounds.Size.Inflate(childMargin);
+
+            if (MathUtilities.AreClose(extent.Width, viewportSize.Width, LayoutHelper.LayoutEpsilon))
+                extent = extent.WithWidth(viewportSize.Width);
+
+            if (MathUtilities.AreClose(extent.Height, viewportSize.Height, LayoutHelper.LayoutEpsilon))
+                extent = extent.WithHeight(viewportSize.Height);
+
+            return extent;
+        }
+
+        private void OnScrollGesture(object? sender, ScrollGestureEventArgs e)
+        {
+            if (Extent.Height > Viewport.Height || Extent.Width > Viewport.Width)
+            {
+                double x = Offset.X;
+                double y = Offset.Y;
+
+                Vector delta = default;
+                delta += e.Delta;
+
+                if (Extent.Height > Viewport.Height)
+                {
+                    double dy;
+                    dy = delta.Y;
+                    y += dy;
+                    y = Math.Max(y, 0);
+                    y = Math.Min(y, Extent.Height - Viewport.Height);
+                }
+
+                if (Extent.Width > Viewport.Width)
+                {
+                    double dx;
+                    dx = delta.X;
+                    x += dx;
+                    x = Math.Max(x, 0);
+                    x = Math.Min(x, Extent.Width - Viewport.Width);
+                }
+
+                Vector newOffset = new Vector(x, y);
+
+                if (_scrollGestureSnapPoints?.TryGetValue(e.Id, out var snapPoint) == true)
+                {
+                    double xOffset = x;
+                    double yOffset = y;
+
+                    if (HorizontalSnapPointsType != SnapPointsType.None)
+                    {
+                        xOffset = delta.X < 0 ? Math.Max(snapPoint.X, newOffset.X) : Math.Min(snapPoint.X, newOffset.X);
+                    }
+
+                    if (VerticalSnapPointsType != SnapPointsType.None)
+                    {
+                        yOffset = delta.Y < 0 ? Math.Max(snapPoint.Y, newOffset.Y) : Math.Min(snapPoint.Y, newOffset.Y);
+                    }
+
+                    newOffset = new Vector(xOffset, yOffset);
+                }
+
+                bool offsetChanged = newOffset != Offset;
+                SetCurrentValue(OffsetProperty, newOffset);
+
+                e.Handled = !IsScrollChainingEnabled || offsetChanged;
+
+                e.ShouldEndScrollGesture = !IsScrollChainingEnabled && !offsetChanged;
+            }
+        }
+
+        private void OnScrollGestureEnded(object? sender, ScrollGestureEndedEventArgs e)
+        {
+            _scrollGestureSnapPoints?.Remove(e.Id);
+
+            SetCurrentValue(OffsetProperty, SnapOffset(Offset));
+        }
+
+        private void OnScrollGestureInertiaStartingEnded(object? sender, ScrollGestureInertiaStartingEventArgs e)
+        {
+            var scrollable = Content;
+
+            if (Content is ItemsControl itemsControl)
+                scrollable = itemsControl.Presenter?.Panel;
+
+            if (scrollable is not IScrollSnapPointsInfo)
+                return;
+
+            if (_scrollGestureSnapPoints == null)
+                _scrollGestureSnapPoints = new Dictionary<int, Vector>();
+
+            var offset = Offset;
+
+            if (HorizontalSnapPointsType != SnapPointsType.None && VerticalSnapPointsType != SnapPointsType.None)
+            {
+                return;
+            }
+
+            double xDistance = 0;
+            double yDistance = 0;
+
+            if (HorizontalSnapPointsType != SnapPointsType.None)
+            {
+                xDistance = HorizontalSnapPointsType == SnapPointsType.Mandatory ? GetDistance(e.Inertia.X) : 0;
+            }
+
+            if (VerticalSnapPointsType != SnapPointsType.None)
+            {
+                yDistance = VerticalSnapPointsType == SnapPointsType.Mandatory ? GetDistance(e.Inertia.Y) : 0;
+            }
+
+            offset = new Vector(offset.X + xDistance, offset.Y + yDistance);
+
+            System.Diagnostics.Debug.WriteLine($"{offset}");
+
+            _scrollGestureSnapPoints.Add(e.Id, SnapOffset(offset));
+
+            double GetDistance(double speed)
+            {
+                var time = Math.Log(ScrollGestureRecognizer.InertialScrollSpeedEnd / Math.Abs(speed)) / Math.Log(ScrollGestureRecognizer.InertialResistance);
+
+                double timeElapsed = 0, distance = 0, step = 0;
+
+                while (timeElapsed <= time)
+                {
+                    double s = speed * Math.Pow(ScrollGestureRecognizer.InertialResistance, timeElapsed);
+                    distance += (s * step);
+
+                    timeElapsed += 0.016f;
+                    step = 0.016f;
+                }
+
+                return distance;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+        {
+            if (_interactionTracker == null)
+                return;
+
+            if (Extent.Height > Viewport.Height || Extent.Width > Viewport.Width)
+            {
+                var x = Offset.X;
+                var y = Offset.Y;
+                var delta = e.Delta;
+
+                // KeyModifiers.Shift should scroll in horizontal direction. This does not work on every platform. 
+                // If Shift-Key is pressed and X is close to 0 we swap the Vector.
+                if (e.KeyModifiers == KeyModifiers.Shift && MathUtilities.IsZero(delta.X))
+                {
+                    delta = new Vector(delta.Y, delta.X);
+                }
+
+                if (Extent.Height > Viewport.Height)
+                {
+                    double height = 50;
+                    y += -delta.Y * height;
+                    y = Math.Max(y, 0);
+                    y = Math.Min(y, Extent.Height - Viewport.Height);
+                }
+
+                if (Extent.Width > Viewport.Width)
+                {
+                    double width = 50;
+                    x += -delta.X * width;
+                    x = Math.Max(x, 0);
+                    x = Math.Min(x, Extent.Width - Viewport.Width);
+                }
+
+                Vector newOffset = SnapOffset(new Vector(x, y));
+
+                bool offsetChanged = newOffset != Offset;
+
+                var deltaOffset = newOffset - Offset;
+                _interactionTracker.AnimatePositionBy(new Vector3D(deltaOffset.X, deltaOffset.Y, 0));
+                //SetCurrentValue(OffsetProperty, newOffset);
+
+                e.Handled = !IsScrollChainingEnabled || offsetChanged;
+            }
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            if (change.Property == OffsetProperty)
+            {
+                if (!_arranging)
+                {
+                    InvalidateArrange();
+                }
+
+                if (!_compositionUpdate)
+                {
+                    var offset = change.GetNewValue<Vector>();
+                    requestId = _interactionTracker.UpdatePosition(new Vector3D(offset.X, offset.Y, 0));
+                }
+                else
+                {
+                    requestId = null;
+                }
+
+                _owner?.SetCurrentValue(OffsetProperty, change.GetNewValue<Vector>());
+            }
+            else if (change.Property == ChildProperty)
+            {
+                ChildChanged(change);
+            }
+            else if (change.Property == HorizontalSnapPointsAlignmentProperty ||
+                change.Property == VerticalSnapPointsAlignmentProperty)
+            {
+                UpdateSnapPoints();
+            }
+            else if (change.Property == ExtentProperty)
+            {
+                if (_owner != null)
+                {
+                    _owner.Extent = change.GetNewValue<Size>();
+                }
+                CoerceValue(OffsetProperty);
+            }
+            else if (change.Property == ViewportProperty)
+            {
+                if (_owner != null)
+                {
+                    _owner.Viewport = change.GetNewValue<Size>();
+                }
+                CoerceValue(OffsetProperty);
+            }
+
+            base.OnPropertyChanged(change);
+        }
+
+        private void ScrollSnapPointsInfoSnapPointsChanged(object? sender, RoutedEventArgs e)
+        {
+            UpdateSnapPoints();
+        }
+
+        private void BringIntoViewRequested(object? sender, RequestBringIntoViewEventArgs e)
+        {
+            if (e.TargetObject is not null)
+                e.Handled = BringDescendantIntoView(e.TargetObject, e.TargetRect);
+        }
+
+        private void ChildChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.OldValue != null)
+            {
+                SetCurrentValue(OffsetProperty, default);
+                var compositionVisual = ElementComposition.GetElementVisual(e.OldValue as Control);
+                if (compositionVisual != null)
+                {
+                    compositionVisual.ImplicitAnimations = null;
+                }
+            }
+
+            UpdateScrollAnimation();
+        }
+
+        private void EnsureAnchorElementSelection()
+        {
+            if (!_isAnchorElementDirty || _anchorCandidates is null)
+            {
+                return;
+            }
+
+            _anchorElement = null;
+            _anchorElementBounds = default;
+            _isAnchorElementDirty = false;
+
+            var bestCandidate = default(Control);
+            var bestCandidateDistance = double.MaxValue;
+
+            // Find the anchor candidate that is scrolled closest to the top-left of this
+            // ScrollContentPresenter.
+            foreach (var element in _anchorCandidates)
+            {
+                if (element.IsVisible && GetViewportBounds(element, out var bounds))
+                {
+                    var distance = (Vector)bounds.Position;
+                    var candidateDistance = Math.Abs(distance.Length);
+
+                    if (candidateDistance < bestCandidateDistance)
+                    {
+                        bestCandidate = element;
+                        bestCandidateDistance = candidateDistance;
+                    }
+                }
+            }
+
+            if (bestCandidate != null)
+            {
+                // We have a candidate, calculate its bounds relative to Child. Because these
+                // bounds aren't relative to the ScrollContentPresenter itself, if they change
+                // then we know it wasn't just due to scrolling.
+                var unscrolledBounds = TranslateBounds(bestCandidate, Child!);
+                _anchorElement = bestCandidate;
+                _anchorElementBounds = unscrolledBounds;
+            }
+        }
+
+        private bool GetViewportBounds(Control element, out Rect bounds)
+        {
+            if (TranslateBounds(element, Child!, out var childBounds))
+            {
+                // We want the bounds relative to the new Offset, regardless of whether the child
+                // control has actually been arranged to this offset yet, so translate first to the
+                // child control and then apply Offset rather than translating directly to this
+                // control.
+                var thisBounds = new Rect(Bounds.Size);
+                bounds = new Rect(childBounds.Position - Offset, childBounds.Size);
+                return bounds.Intersects(thisBounds);
+            }
+
+            bounds = default;
+            return false;
+        }
+
+        private Rect TranslateBounds(Control control, Control to)
+        {
+            if (TranslateBounds(control, to, out var bounds))
+            {
+                return bounds;
+            }
+
+            throw new InvalidOperationException("The control's bounds could not be translated to the requested control.");
+        }
+
+        private bool TranslateBounds(Control control, Control to, out Rect bounds)
+        {
+            if (!control.IsVisible)
+            {
+                bounds = default;
+                return false;
+            }
+
+            var p = control.TranslatePoint(default, to);
+            bounds = p.HasValue ? new Rect(p.Value, control.Bounds.Size) : default;
+            return p.HasValue;
+        }
+
+        private void UpdateSnapPoints()
+        {
+            var scrollable = GetScrollSnapPointsInfo(Content);
+
+            if (scrollable is IScrollSnapPointsInfo scrollSnapPointsInfo)
+            {
+                _areVerticalSnapPointsRegular = scrollSnapPointsInfo.AreVerticalSnapPointsRegular;
+                _areHorizontalSnapPointsRegular = scrollSnapPointsInfo.AreHorizontalSnapPointsRegular;
+
+                if (!_areVerticalSnapPointsRegular)
+                {
+                    _verticalSnapPoints = scrollSnapPointsInfo.GetIrregularSnapPoints(Orientation.Vertical, VerticalSnapPointsAlignment);
+                }
+                else
+                {
+                    _verticalSnapPoints = new List<double>();
+                    _verticalSnapPoint = scrollSnapPointsInfo.GetRegularSnapPoints(Orientation.Vertical, VerticalSnapPointsAlignment, out _verticalSnapPointOffset);
+
+                }
+
+                if (!_areHorizontalSnapPointsRegular)
+                {
+                    _horizontalSnapPoints = scrollSnapPointsInfo.GetIrregularSnapPoints(Orientation.Horizontal, HorizontalSnapPointsAlignment);
+                }
+                else
+                {
+                    _horizontalSnapPoints = new List<double>();
+                    _horizontalSnapPoint = scrollSnapPointsInfo.GetRegularSnapPoints(Orientation.Vertical, VerticalSnapPointsAlignment, out _horizontalSnapPointOffset);
+                }
+            }
+            else
+            {
+                _horizontalSnapPoints = new List<double>();
+                _verticalSnapPoints = new List<double>();
+            }
+        }
+
+        private Vector SnapOffset(Vector offset)
+        {
+            var scrollable = GetScrollSnapPointsInfo(Content);
+
+            if (scrollable is null)
+                return offset;
+
+            var diff = GetAlignedDiff();
+
+            if (VerticalSnapPointsType != SnapPointsType.None)
+            {
+                offset = new Vector(offset.X, offset.Y + diff.Y);
+                double nearestSnapPoint = offset.Y;
+
+                if (_areVerticalSnapPointsRegular)
+                {
+                    var minSnapPoint = (int)(offset.Y / _verticalSnapPoint) * _verticalSnapPoint + _verticalSnapPointOffset;
+                    var maxSnapPoint = minSnapPoint + _verticalSnapPoint;
+                    var midPoint = (minSnapPoint + maxSnapPoint) / 2;
+
+                    nearestSnapPoint = offset.Y < midPoint ? minSnapPoint : maxSnapPoint;
+                }
+                else if (_verticalSnapPoints != null && _verticalSnapPoints.Count > 0)
+                {
+                    var higherSnapPoint = FindNearestSnapPoint(_verticalSnapPoints, offset.Y, out var lowerSnapPoint);
+                    var midPoint = (lowerSnapPoint + higherSnapPoint) / 2;
+
+                    nearestSnapPoint = offset.Y < midPoint ? lowerSnapPoint : higherSnapPoint;
+                }
+
+                offset = new Vector(offset.X, nearestSnapPoint - diff.Y);
+            }
+
+            if (HorizontalSnapPointsType != SnapPointsType.None)
+            {
+                offset = new Vector(offset.X + diff.X, offset.Y);
+                double nearestSnapPoint = offset.X;
+
+                if (_areHorizontalSnapPointsRegular)
+                {
+                    var minSnapPoint = (int)(offset.X / _horizontalSnapPoint) * _horizontalSnapPoint + _horizontalSnapPointOffset;
+                    var maxSnapPoint = minSnapPoint + _horizontalSnapPoint;
+                    var midPoint = (minSnapPoint + maxSnapPoint) / 2;
+
+                    nearestSnapPoint = offset.X < midPoint ? minSnapPoint : maxSnapPoint;
+                }
+                else if (_horizontalSnapPoints != null && _horizontalSnapPoints.Count > 0)
+                {
+                    var higherSnapPoint = FindNearestSnapPoint(_horizontalSnapPoints, offset.X, out var lowerSnapPoint);
+                    var midPoint = (lowerSnapPoint + higherSnapPoint) / 2;
+
+                    nearestSnapPoint = offset.X < midPoint ? lowerSnapPoint : higherSnapPoint;
+                }
+
+                offset = new Vector(nearestSnapPoint - diff.X, offset.Y);
+
+            }
+
+            Vector GetAlignedDiff()
+            {
+                var vector = offset;
+
+                switch (VerticalSnapPointsAlignment)
+                {
+                    case SnapPointsAlignment.Center:
+                        vector += new Vector(0, Viewport.Height / 2);
+                        break;
+                    case SnapPointsAlignment.Far:
+                        vector += new Vector(0, Viewport.Height);
+                        break;
+                }
+
+                switch (HorizontalSnapPointsAlignment)
+                {
+                    case SnapPointsAlignment.Center:
+                        vector += new Vector(Viewport.Width / 2, 0);
+                        break;
+                    case SnapPointsAlignment.Far:
+                        vector += new Vector(Viewport.Width, 0);
+                        break;
+                }
+
+                return vector - offset;
+            }
+
+            return offset;
+        }
+
+        private static double FindNearestSnapPoint(IReadOnlyList<double> snapPoints, double value, out double lowerSnapPoint)
+        {
+            var point = snapPoints.BinarySearch(value, Comparer<double>.Default);
+
+            if (point < 0)
+            {
+                point = ~point;
+
+                lowerSnapPoint = snapPoints[Math.Max(0, point - 1)];
+            }
+            else
+            {
+                lowerSnapPoint = snapPoints[point];
+
+                point += 1;
+            }
+            return snapPoints[Math.Min(point, snapPoints.Count - 1)];
+        }
+
+        private IScrollSnapPointsInfo? GetScrollSnapPointsInfo(object? content)
+        {
+            var scrollable = content;
+
+            if (Content is ItemsControl itemsControl)
+                scrollable = itemsControl.Presenter?.Panel;
+
+            if (Content is ItemsPresenter itemsPresenter)
+                scrollable = itemsPresenter.Panel;
+
+            var snapPointsInfo = scrollable as IScrollSnapPointsInfo;
+
+            if (snapPointsInfo != _scrollSnapPointsInfo)
+            {
+                if (_scrollSnapPointsInfo != null)
+                {
+                    _scrollSnapPointsInfo.VerticalSnapPointsChanged -= ScrollSnapPointsInfoSnapPointsChanged;
+                    _scrollSnapPointsInfo.HorizontalSnapPointsChanged -= ScrollSnapPointsInfoSnapPointsChanged;
+                }
+
+                _scrollSnapPointsInfo = snapPointsInfo;
+
+                if (_scrollSnapPointsInfo != null)
+                {
+                    _scrollSnapPointsInfo.VerticalSnapPointsChanged += ScrollSnapPointsInfoSnapPointsChanged;
+                    _scrollSnapPointsInfo.HorizontalSnapPointsChanged += ScrollSnapPointsInfoSnapPointsChanged;
+                }
+            }
+
+            return snapPointsInfo;
+        }
+
+        public void ValuesChanged(InteractionTracker sender, InteractionTrackerValuesChangedArgs args)
+        {
+            if (args.RequestId != 0 && requestId.HasValue && args.RequestId <= requestId)
+                return;
+            try
+            {
+                _compositionUpdate = true;
+                SetCurrentValue(OffsetProperty, new Vector(args.Position.X, args.Position.Y));
+            }
+            finally
+            {
+                _compositionUpdate = false;
+            }
+        }
+
+        private void EnsureScrollAnimation()
+        {
+            if (_interactionTracker == null)
+                return;
+
+            if (_offsetAnimation == null)
+            {
+                var compositionVisual = ElementComposition.GetElementVisual(this);
+
+                _offsetAnimation = compositionVisual.Compositor.CreateExpressionAnimation();
+                _offsetAnimation.Expression = "-Tracker.Position";
+                _offsetAnimation.Target = "Offset";
+                _offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
+            }
+        }
+
+        private void UpdateScrollAnimation()
+        {
+            if (Child == null)
+                return;
+
+            var vis = ElementComposition.GetElementVisual(Child);
+            if (vis == null)
+                return;
+
+            EnsureScrollAnimation();
+            vis.StartAnimation("Offset", _offsetAnimation);
+        }
+    }
+}

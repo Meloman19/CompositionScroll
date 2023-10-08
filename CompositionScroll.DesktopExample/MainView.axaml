@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CompositionScroll.DesktopExample"
+			 xmlns:scroll="using:CompositionScroll"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="CompositionScroll.DesktopExample.MainView"
+             x:DataType="vm:MainViewModel">
+	<UserControl.Resources>
+		<ControlTheme x:Key="{x:Type ScrollViewer}" TargetType="ScrollViewer">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
+						<scroll:CompositionScrollContentPresenter Name="PART_ContentPresenter"
+												Grid.Row="0"
+												Grid.Column="0"
+												Grid.RowSpan="2"
+												Grid.ColumnSpan="2"
+												Background="{TemplateBinding Background}"
+												HorizontalSnapPointsType="{TemplateBinding HorizontalSnapPointsType}"
+												VerticalSnapPointsType="{TemplateBinding VerticalSnapPointsType}"
+												HorizontalSnapPointsAlignment="{TemplateBinding HorizontalSnapPointsAlignment}"
+												VerticalSnapPointsAlignment="{TemplateBinding VerticalSnapPointsAlignment}"
+												Padding="{TemplateBinding Padding}"
+												ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}">
+							<scroll:CompositionScrollContentPresenter.GestureRecognizers>
+								<ScrollGestureRecognizer CanHorizontallyScroll="{Binding CanHorizontallyScroll, ElementName=PART_ContentPresenter}"
+														 CanVerticallyScroll="{Binding CanVerticallyScroll, ElementName=PART_ContentPresenter}"
+														 IsScrollInertiaEnabled="{Binding (ScrollViewer.IsScrollInertiaEnabled), ElementName=PART_ContentPresenter}"/>
+							</scroll:CompositionScrollContentPresenter.GestureRecognizers>
+						</scroll:CompositionScrollContentPresenter>
+						<ScrollBar Name="PART_HorizontalScrollBar"
+								   Orientation="Horizontal"
+								   Grid.Row="1" />
+						<ScrollBar Name="PART_VerticalScrollBar"
+								   Orientation="Vertical"
+								   Grid.Column="1" />
+						<Panel x:Name="PART_ScrollBarsSeparator"
+							   Grid.Row="1"
+							   Grid.Column="1"
+							   Background="{DynamicResource ScrollViewerScrollBarsSeparatorBackground}"
+							   Opacity="0">
+							<Panel.Transitions>
+								<Transitions>
+									<DoubleTransition Property="Opacity" Duration="0:0:0.1" />
+								</Transitions>
+							</Panel.Transitions>
+						</Panel>
+					</Grid>
+				</ControlTemplate>
+			</Setter>
+			<Style Selector="^[IsExpanded=true] /template/ Panel#PART_ScrollBarsSeparator">
+				<Setter Property="Opacity" Value="1" />
+			</Style>
+		</ControlTheme>
+	</UserControl.Resources>
+
+	<Design.DataContext>
+		<vm:MainViewModel />
+	</Design.DataContext>
+
+	<Grid ColumnDefinitions="*,*,*"
+		  RowDefinitions="Auto, *"
+		  Background="White">
+
+		<TextBlock Text="10000 words"
+				   HorizontalAlignment="Center"/>
+
+		<TextBlock Text="1000 items (ItemsRepeater)"
+				   HorizontalAlignment="Center"
+				   Grid.Column="1"/>
+
+		<TextBlock Text="1000 items (StackPanel)"
+				   HorizontalAlignment="Center"
+				   Grid.Column="2"/>
+
+		<!--10000 words-->
+		<TextBox Text="{Binding ExampleText}"
+				 TextWrapping="Wrap"
+				 Grid.Row="1"/>
+
+		<!--1000 items-->
+		<ScrollViewer HorizontalScrollBarVisibility="Disabled"
+					  Grid.Row="1"
+					  Grid.Column="1">
+			<ItemsRepeater ItemsSource="{Binding ExampleCollection}">
+				<ItemsRepeater.ItemTemplate>
+					<DataTemplate>
+						<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+							<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+						</Border>
+					</DataTemplate>
+				</ItemsRepeater.ItemTemplate>
+
+				<ItemsRepeater.Layout>
+					<StackLayout />
+				</ItemsRepeater.Layout>
+			</ItemsRepeater>
+		</ScrollViewer>
+
+		<!--1000 items-->
+		<ItemsControl Grid.Row="1"
+					  Grid.Column="2"
+					  ItemsSource="{Binding ExampleCollection}">
+			<ItemsControl.Template>
+				<ControlTemplate>
+					<ScrollViewer HorizontalScrollBarVisibility="Disabled">
+						<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+					</ScrollViewer>
+				</ControlTemplate>
+			</ItemsControl.Template>
+
+			<ItemsControl.ItemsPanel>
+				<ItemsPanelTemplate>
+					<StackPanel ClipToBounds="False" />
+				</ItemsPanelTemplate>
+			</ItemsControl.ItemsPanel>
+
+			<ItemsControl.ItemTemplate>
+				<DataTemplate>
+					<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+						<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+					</Border>
+				</DataTemplate>
+			</ItemsControl.ItemTemplate>
+		</ItemsControl>
+	</Grid>
+</UserControl>
