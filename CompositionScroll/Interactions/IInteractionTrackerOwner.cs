@@ -1,6 +1,6 @@
 ﻿using Avalonia;
 
-namespace CompositionScroll
+namespace CompositionScroll.Interactions
 {
     public interface IInteractionTrackerOwner
     {

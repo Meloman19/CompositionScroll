@@ -2,16 +2,22 @@
 using Avalonia.Rendering.Composition;
 using Avalonia.Rendering.Composition.Transport;
 using Avalonia.Threading;
+using CompositionScroll.Interactions.Server;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace CompositionScroll
+namespace CompositionScroll.Interactions
 {
     internal enum RequestType
     {
         AnimatePositionBy,
         ShiftPositionBy,
-        UpdatePositionTo
+        UpdatePositionTo,
+        AnimatePositionByVel,
+        GestureStart,
+        GestureEnd,
+        GestureMove,
     }
 
     internal readonly struct InteractionTrackerRequest
@@ -19,21 +25,27 @@ namespace CompositionScroll
         public InteractionTrackerRequest(RequestType requestType, Vector3D value, long requestId)
         {
             Type = requestType;
-            Value = value;
+            VectorValue = value;
             RequestId = requestId;
         }
 
-        public RequestType Type { get; }
+        public RequestType Type { get; init; }
 
-        public Vector3D Value { get; }
+        public Vector3D? VectorValue { get; init; }
 
-        public long RequestId { get; }
+        public TimeSpan? TimeSpanValue { get; init; }
+
+        public int? IntValue { get; init; }
+
+        public long RequestId { get; init; }
     }
 
     public sealed class InteractionTracker : CompositionObject
     {
+        private InteractionSource _interactionSource;
+
         private readonly IInteractionTrackerOwner _owner;
-        private List<object> _messages;
+        private List<InteractionTrackerRequest> _messages;
         private long _requestId = 0;
 
         internal InteractionTracker(Compositor compositor, IInteractionTrackerOwner owner)
@@ -48,11 +60,91 @@ namespace CompositionScroll
             server.Init(this);
         }
 
+        public InteractionSource InteractionSource
+        {
+            get => _interactionSource;
+            set
+            {
+                if (_interactionSource != null)
+                    _interactionSource.SetInteractionTracker(null);
+                _interactionSource = value;
+                if (_interactionSource != null)
+                    _interactionSource.SetInteractionTracker(this);
+            }
+        }
 
         public void AnimatePositionBy(Vector3D deltaPosition)
         {
             var requestId = Interlocked.Increment(ref _requestId);
-            SendHandlerMessage(new InteractionTrackerRequest(RequestType.AnimatePositionBy, deltaPosition, requestId));
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.AnimatePositionBy,
+                VectorValue = deltaPosition,
+                RequestId = requestId,
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void AnimatePositionByVel(Vector3D vel)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.AnimatePositionByVel,
+                VectorValue = vel,
+                RequestId = requestId,
+            };
+            SendHandlerMessage(request);
+        }
+
+        public void AnimatePositionBy(Vector3D deltaPosition, TimeSpan duration)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.AnimatePositionBy,
+                VectorValue = deltaPosition,
+                TimeSpanValue = duration,
+                RequestId = requestId,
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void BeginUserInteraction(int gestureId)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.GestureStart,
+                RequestId = requestId,
+                IntValue = gestureId
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void GestureEnd(int gestureId)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.GestureEnd,
+                RequestId = requestId,
+                IntValue = gestureId
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void GestureMove(int gestureId, Vector3D delta)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.GestureMove,
+                RequestId = requestId,
+                IntValue = gestureId,
+                VectorValue = delta,
+            };
+            SendHandlerMessage(request);
         }
 
         public void ShiftPositionBy(Vector3D shift)
@@ -72,7 +164,8 @@ namespace CompositionScroll
         {
             (Server as ServerInteractionTracker).MaxPosition = maxPosition;
         }
-        private void SendHandlerMessage(object message)
+
+        private void SendHandlerMessage(InteractionTrackerRequest message)
         {
             (_messages ??= new()).Add(message);
             RegisterForSerialization();
@@ -87,7 +180,7 @@ namespace CompositionScroll
             {
                 writer.Write(_messages.Count);
                 foreach (var m in _messages)
-                    writer.WriteObject(m);
+                    writer.Write(m);
                 _messages.Clear();
             }
         }
@@ -115,7 +208,7 @@ namespace CompositionScroll
     {
         public static InteractionTracker CreateInteractionTracker(this Compositor compositor)
         {
-            return CreateInteractionTracker(compositor, null);
+            return compositor.CreateInteractionTracker(null);
         }
 
         public static InteractionTracker CreateInteractionTracker(this Compositor compositor, IInteractionTrackerOwner owner)

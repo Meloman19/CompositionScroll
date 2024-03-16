@@ -13,24 +13,21 @@
 			<Setter Property="Template">
 				<ControlTemplate>
 					<Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
-						<scroll:CompositionScrollContentPresenter Name="PART_ContentPresenter"
-												Grid.Row="0"
-												Grid.Column="0"
-												Grid.RowSpan="2"
-												Grid.ColumnSpan="2"
-												Background="{TemplateBinding Background}"
-												HorizontalSnapPointsType="{TemplateBinding HorizontalSnapPointsType}"
-												VerticalSnapPointsType="{TemplateBinding VerticalSnapPointsType}"
-												HorizontalSnapPointsAlignment="{TemplateBinding HorizontalSnapPointsAlignment}"
-												VerticalSnapPointsAlignment="{TemplateBinding VerticalSnapPointsAlignment}"
-												Padding="{TemplateBinding Padding}"
-												ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}">
-							<scroll:CompositionScrollContentPresenter.GestureRecognizers>
-								<ScrollGestureRecognizer CanHorizontallyScroll="{Binding CanHorizontallyScroll, ElementName=PART_ContentPresenter}"
-														 CanVerticallyScroll="{Binding CanVerticallyScroll, ElementName=PART_ContentPresenter}"
-														 IsScrollInertiaEnabled="{Binding (ScrollViewer.IsScrollInertiaEnabled), ElementName=PART_ContentPresenter}"/>
-							</scroll:CompositionScrollContentPresenter.GestureRecognizers>
-						</scroll:CompositionScrollContentPresenter>
+						<scroll:CompositionScrollContentPresenter
+							Name="PART_ContentPresenter"
+							Grid.Row="0"
+							Grid.Column="0"
+							Grid.RowSpan="2"
+							Grid.ColumnSpan="2"
+							Background="{TemplateBinding Background}"
+							HorizontalSnapPointsType="{TemplateBinding HorizontalSnapPointsType}"
+							VerticalSnapPointsType="{TemplateBinding VerticalSnapPointsType}"
+							HorizontalSnapPointsAlignment="{TemplateBinding HorizontalSnapPointsAlignment}"
+							VerticalSnapPointsAlignment="{TemplateBinding VerticalSnapPointsAlignment}"
+							Padding="{TemplateBinding Padding}"
+							ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}"
+							MousePressedScroll="True"
+							MousePressedScrollInertia="True" />
 						<ScrollBar Name="PART_HorizontalScrollBar"
 								   Orientation="Horizontal"
 								   Grid.Row="1" />

@@ -3,8 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
-using Avalonia.Input;
-using Avalonia.Input.GestureRecognizers;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Reactive;
@@ -12,6 +10,7 @@ using Avalonia.Rendering.Composition;
 using Avalonia.Rendering.Composition.Animations;
 using Avalonia.Utilities;
 using Avalonia.VisualTree;
+using CompositionScroll.Interactions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,6 +23,13 @@ namespace CompositionScroll
     public sealed class CompositionScrollContentPresenter : ContentPresenter, IScrollable, IScrollAnchorProvider, IInteractionTrackerOwner
     {
         private const double EdgeDetectionTolerance = 0.1;
+
+
+        public static readonly StyledProperty<bool> MousePressedScrollProperty =
+            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(MousePressedScroll), defaultValue: false);
+
+        public static readonly StyledProperty<bool> MousePressedScrollInertiaProperty =
+            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(MousePressedScrollInertia), defaultValue: true);
 
         /// <summary>
         /// Defines the <see cref="CanHorizontallyScroll"/> property.
@@ -128,9 +134,18 @@ namespace CompositionScroll
         public CompositionScrollContentPresenter()
         {
             AddHandler(RequestBringIntoViewEvent, BringIntoViewRequested);
-            AddHandler(Gestures.ScrollGestureEvent, OnScrollGesture);
-            AddHandler(Gestures.ScrollGestureEndedEvent, OnScrollGestureEnded);
-            AddHandler(Gestures.ScrollGestureInertiaStartingEvent, OnScrollGestureInertiaStartingEnded);
+        }
+
+        public bool MousePressedScroll
+        {
+            get => GetValue(MousePressedScrollProperty);
+            set => SetValue(MousePressedScrollProperty, value);
+        }
+
+        public bool MousePressedScrollInertia
+        {
+            get => GetValue(MousePressedScrollInertiaProperty);
+            set => SetValue(MousePressedScrollInertiaProperty, value);
         }
 
         /// <summary>
@@ -303,7 +318,9 @@ namespace CompositionScroll
 
             var compositionVisual = ElementComposition.GetElementVisual(this);
             _interactionTracker = compositionVisual.Compositor.CreateInteractionTracker(this);
+            _interactionTracker.InteractionSource = new InteractionSource(this);
             UpdateScrollAnimation();
+            UpdateInteractionOptions();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -521,175 +538,6 @@ namespace CompositionScroll
             return extent;
         }
 
-        private void OnScrollGesture(object? sender, ScrollGestureEventArgs e)
-        {
-            if (Extent.Height > Viewport.Height || Extent.Width > Viewport.Width)
-            {
-                double x = Offset.X;
-                double y = Offset.Y;
-
-                Vector delta = default;
-                delta += e.Delta;
-
-                if (Extent.Height > Viewport.Height)
-                {
-                    double dy;
-                    dy = delta.Y;
-                    y += dy;
-                    y = Math.Max(y, 0);
-                    y = Math.Min(y, Extent.Height - Viewport.Height);
-                }
-
-                if (Extent.Width > Viewport.Width)
-                {
-                    double dx;
-                    dx = delta.X;
-                    x += dx;
-                    x = Math.Max(x, 0);
-                    x = Math.Min(x, Extent.Width - Viewport.Width);
-                }
-
-                Vector newOffset = new Vector(x, y);
-
-                if (_scrollGestureSnapPoints?.TryGetValue(e.Id, out var snapPoint) == true)
-                {
-                    double xOffset = x;
-                    double yOffset = y;
-
-                    if (HorizontalSnapPointsType != SnapPointsType.None)
-                    {
-                        xOffset = delta.X < 0 ? Math.Max(snapPoint.X, newOffset.X) : Math.Min(snapPoint.X, newOffset.X);
-                    }
-
-                    if (VerticalSnapPointsType != SnapPointsType.None)
-                    {
-                        yOffset = delta.Y < 0 ? Math.Max(snapPoint.Y, newOffset.Y) : Math.Min(snapPoint.Y, newOffset.Y);
-                    }
-
-                    newOffset = new Vector(xOffset, yOffset);
-                }
-
-                bool offsetChanged = newOffset != Offset;
-                SetCurrentValue(OffsetProperty, newOffset);
-
-                e.Handled = !IsScrollChainingEnabled || offsetChanged;
-
-                e.ShouldEndScrollGesture = !IsScrollChainingEnabled && !offsetChanged;
-            }
-        }
-
-        private void OnScrollGestureEnded(object? sender, ScrollGestureEndedEventArgs e)
-        {
-            _scrollGestureSnapPoints?.Remove(e.Id);
-
-            SetCurrentValue(OffsetProperty, SnapOffset(Offset));
-        }
-
-        private void OnScrollGestureInertiaStartingEnded(object? sender, ScrollGestureInertiaStartingEventArgs e)
-        {
-            var scrollable = Content;
-
-            if (Content is ItemsControl itemsControl)
-                scrollable = itemsControl.Presenter?.Panel;
-
-            if (scrollable is not IScrollSnapPointsInfo)
-                return;
-
-            if (_scrollGestureSnapPoints == null)
-                _scrollGestureSnapPoints = new Dictionary<int, Vector>();
-
-            var offset = Offset;
-
-            if (HorizontalSnapPointsType != SnapPointsType.None && VerticalSnapPointsType != SnapPointsType.None)
-            {
-                return;
-            }
-
-            double xDistance = 0;
-            double yDistance = 0;
-
-            if (HorizontalSnapPointsType != SnapPointsType.None)
-            {
-                xDistance = HorizontalSnapPointsType == SnapPointsType.Mandatory ? GetDistance(e.Inertia.X) : 0;
-            }
-
-            if (VerticalSnapPointsType != SnapPointsType.None)
-            {
-                yDistance = VerticalSnapPointsType == SnapPointsType.Mandatory ? GetDistance(e.Inertia.Y) : 0;
-            }
-
-            offset = new Vector(offset.X + xDistance, offset.Y + yDistance);
-
-            System.Diagnostics.Debug.WriteLine($"{offset}");
-
-            _scrollGestureSnapPoints.Add(e.Id, SnapOffset(offset));
-
-            double GetDistance(double speed)
-            {
-                var time = Math.Log(ScrollGestureRecognizer.InertialScrollSpeedEnd / Math.Abs(speed)) / Math.Log(ScrollGestureRecognizer.InertialResistance);
-
-                double timeElapsed = 0, distance = 0, step = 0;
-
-                while (timeElapsed <= time)
-                {
-                    double s = speed * Math.Pow(ScrollGestureRecognizer.InertialResistance, timeElapsed);
-                    distance += (s * step);
-
-                    timeElapsed += 0.016f;
-                    step = 0.016f;
-                }
-
-                return distance;
-            }
-        }
-
-        /// <inheritdoc/>
-        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
-        {
-            if (_interactionTracker == null)
-                return;
-
-            if (Extent.Height > Viewport.Height || Extent.Width > Viewport.Width)
-            {
-                var x = Offset.X;
-                var y = Offset.Y;
-                var delta = e.Delta;
-
-                // KeyModifiers.Shift should scroll in horizontal direction. This does not work on every platform. 
-                // If Shift-Key is pressed and X is close to 0 we swap the Vector.
-                if (e.KeyModifiers == KeyModifiers.Shift && MathUtilities.IsZero(delta.X))
-                {
-                    delta = new Vector(delta.Y, delta.X);
-                }
-
-                if (Extent.Height > Viewport.Height)
-                {
-                    double height = 50;
-                    y += -delta.Y * height;
-                    y = Math.Max(y, 0);
-                    y = Math.Min(y, Extent.Height - Viewport.Height);
-                }
-
-                if (Extent.Width > Viewport.Width)
-                {
-                    double width = 50;
-                    x += -delta.X * width;
-                    x = Math.Max(x, 0);
-                    x = Math.Min(x, Extent.Width - Viewport.Width);
-                }
-
-                Vector newOffset = SnapOffset(new Vector(x, y));
-
-                bool offsetChanged = newOffset != Offset;
-
-                var deltaOffset = newOffset - Offset;
-                _interactionTracker.AnimatePositionBy(new Vector3D(deltaOffset.X, deltaOffset.Y, 0));
-                //SetCurrentValue(OffsetProperty, newOffset);
-
-                e.Handled = !IsScrollChainingEnabled || offsetChanged;
-            }
-        }
-
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             if (change.Property == OffsetProperty)
@@ -736,6 +584,12 @@ namespace CompositionScroll
                 }
                 CoerceValue(OffsetProperty);
             }
+            else
+            if (change.Property == MousePressedScrollProperty ||
+                change.Property == MousePressedScrollInertiaProperty ||
+                change.Property == CanVerticallyScrollProperty ||
+                change.Property == CanHorizontallyScrollProperty)
+                UpdateInteractionOptions();
 
             base.OnPropertyChanged(change);
         }
@@ -1066,6 +920,22 @@ namespace CompositionScroll
 
             EnsureScrollAnimation();
             vis.StartAnimation("Offset", _offsetAnimation);
+        }
+
+        private void UpdateInteractionOptions()
+        {
+            if(_interactionTracker == null)
+                return;
+
+            var source = _interactionTracker.InteractionSource;
+            if (source == null)
+                return;
+
+            source.CanVerticallyScroll = CanVerticallyScroll;
+            source.CanHorizontallyScroll = CanHorizontallyScroll;
+            source.IsScrollInertiaEnabled = ScrollViewer.GetIsScrollInertiaEnabled(this);
+            source.MousePressedScroll = MousePressedScroll;
+            source.MousePressedScrollInertia = MousePressedScrollInertia;
         }
     }
 }
