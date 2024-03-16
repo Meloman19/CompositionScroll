@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CompositionScroll.DesktopExample"
 			 xmlns:scroll="using:CompositionScroll"
+			 xmlns:example="using:CompositionScroll.DesktopExample"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CompositionScroll.DesktopExample.MainView"
              x:DataType="vm:MainViewModel">
@@ -52,76 +53,98 @@
 				<Setter Property="Opacity" Value="1" />
 			</Style>
 		</ControlTheme>
+
+		<example:TemplateSelector x:Key="TemplateSelector">
+			<DataTemplate x:Key="{x:Type example:TextBoxViewModel}">
+				<TextBox Text="{Binding Data.ExampleText}"
+						 TextWrapping="Wrap"
+						 Grid.Row="1"/>
+			</DataTemplate>
+
+			<DataTemplate x:Key="{x:Type example:StackPanelViewModel}">
+				<ItemsControl Grid.Row="1"
+							  Grid.Column="2"
+							  ItemsSource="{Binding Data.ExampleCollection}">
+					<ItemsControl.Template>
+						<ControlTemplate>
+							<ScrollViewer HorizontalScrollBarVisibility="Disabled">
+								<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+							</ScrollViewer>
+						</ControlTemplate>
+					</ItemsControl.Template>
+
+					<ItemsControl.ItemsPanel>
+						<ItemsPanelTemplate>
+							<StackPanel ClipToBounds="False" />
+						</ItemsPanelTemplate>
+					</ItemsControl.ItemsPanel>
+
+					<ItemsControl.ItemTemplate>
+						<DataTemplate>
+							<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+								<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+							</Border>
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
+			</DataTemplate>
+
+			<DataTemplate x:Key="{x:Type example:ItemsRepeaterViewModel}">
+				<ScrollViewer
+					HorizontalScrollBarVisibility="Disabled"
+					Grid.Row="1"
+					Grid.Column="1">
+					<ItemsRepeater ItemsSource="{Binding Data.ExampleCollection}">
+						<ItemsRepeater.ItemTemplate>
+							<DataTemplate>
+								<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+									<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+								</Border>
+							</DataTemplate>
+						</ItemsRepeater.ItemTemplate>
+
+						<ItemsRepeater.Layout>
+							<StackLayout />
+						</ItemsRepeater.Layout>
+					</ItemsRepeater>
+				</ScrollViewer>
+			</DataTemplate>
+
+			<DataTemplate x:Key="{x:Type example:ImageViewModel}">
+				<ScrollViewer 
+					HorizontalScrollBarVisibility="Visible"
+					VerticalScrollBarVisibility="Visible"
+					Width="400"
+					Height="400">
+					<Image Width="800"
+						   Height="800"
+						   Stretch="UniformToFill"
+						   Source="/Assets/delicate-arch-896885_640.jpg" />
+				</ScrollViewer>
+			</DataTemplate>
+		</example:TemplateSelector>
 	</UserControl.Resources>
 
 	<Design.DataContext>
 		<vm:MainViewModel />
 	</Design.DataContext>
 
-	<Grid ColumnDefinitions="*,*,*"
-		  RowDefinitions="Auto, *"
-		  Background="White">
+	<Grid ColumnDefinitions="200, 10, *">
+		<Grid>
+			<ListBox x:Name="ListBox"
+					 ItemsSource="{Binding Items}"
+					 SelectedIndex="0"
+					 SelectionMode="Single"
+					 DisplayMemberBinding="{Binding Header}" />
+		</Grid>
 
-		<TextBlock Text="10000 words"
-				   HorizontalAlignment="Center"/>
+		<GridSplitter Margin="2" BorderThickness="1" BorderBrush="Gray"
+					  Background="#e0e0e0" Grid.Column="1"
+					  ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
 
-		<TextBlock Text="1000 items (ItemsRepeater)"
-				   HorizontalAlignment="Center"
-				   Grid.Column="1"/>
-
-		<TextBlock Text="1000 items (StackPanel)"
-				   HorizontalAlignment="Center"
-				   Grid.Column="2"/>
-
-		<!--10000 words-->
-		<TextBox Text="{Binding ExampleText}"
-				 TextWrapping="Wrap"
-				 Grid.Row="1"/>
-
-		<!--1000 items-->
-		<ScrollViewer HorizontalScrollBarVisibility="Disabled"
-					  Grid.Row="1"
-					  Grid.Column="1">
-			<ItemsRepeater ItemsSource="{Binding ExampleCollection}">
-				<ItemsRepeater.ItemTemplate>
-					<DataTemplate>
-						<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
-							<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
-						</Border>
-					</DataTemplate>
-				</ItemsRepeater.ItemTemplate>
-
-				<ItemsRepeater.Layout>
-					<StackLayout />
-				</ItemsRepeater.Layout>
-			</ItemsRepeater>
-		</ScrollViewer>
-
-		<!--1000 items-->
-		<ItemsControl Grid.Row="1"
-					  Grid.Column="2"
-					  ItemsSource="{Binding ExampleCollection}">
-			<ItemsControl.Template>
-				<ControlTemplate>
-					<ScrollViewer HorizontalScrollBarVisibility="Disabled">
-						<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
-					</ScrollViewer>
-				</ControlTemplate>
-			</ItemsControl.Template>
-
-			<ItemsControl.ItemsPanel>
-				<ItemsPanelTemplate>
-					<StackPanel ClipToBounds="False" />
-				</ItemsPanelTemplate>
-			</ItemsControl.ItemsPanel>
-
-			<ItemsControl.ItemTemplate>
-				<DataTemplate>
-					<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
-						<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
-					</Border>
-				</DataTemplate>
-			</ItemsControl.ItemTemplate>
-		</ItemsControl>
+		<Grid Grid.Column="2">
+			<ContentControl Content="{Binding ElementName=ListBox, Path=SelectedItem}"
+							ContentTemplate="{StaticResource TemplateSelector}" />
+		</Grid>
 	</Grid>
 </UserControl>

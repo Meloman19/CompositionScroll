@@ -13,6 +13,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Assets\delicate-arch-896885_640.jpg" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />

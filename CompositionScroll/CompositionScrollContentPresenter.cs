@@ -512,7 +512,8 @@ namespace CompositionScroll
             _isAnchorElementDirty = true;
 
             var scrollableHeight = Extent.Height - Viewport.Height;
-            _interactionTracker?.SetMaxPosition(new Vector3D(0, (float)scrollableHeight, 0));
+            var scrollableWidth = Extent.Width - Viewport.Width;
+            _interactionTracker?.SetMaxPosition(new Vector3D((float)scrollableWidth, (float)scrollableHeight, 0));
 
             return finalSize;
         }
@@ -550,7 +551,7 @@ namespace CompositionScroll
                 if (!_compositionUpdate)
                 {
                     var offset = change.GetNewValue<Vector>();
-                    requestId = _interactionTracker.UpdatePosition(new Vector3D(offset.X, offset.Y, 0));
+                    requestId = _interactionTracker?.UpdatePosition(new Vector3D(offset.X, offset.Y, 0));
                 }
                 else
                 {
