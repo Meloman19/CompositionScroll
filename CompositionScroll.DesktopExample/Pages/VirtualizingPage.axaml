@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:vm="using:CompositionScroll.DesktopExample.VM"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="CompositionScroll.DesktopExample.Pages.VirtualizingPage">
+	<UserControl.DataContext>
+		<vm:SimpleDataListViewModel />
+	</UserControl.DataContext>
+
+	<ItemsControl Grid.Row="1"
+				  Grid.Column="2"
+				  ItemsSource="{Binding Items}">
+		<ItemsControl.Template>
+			<ControlTemplate>
+				<ScrollViewer HorizontalScrollBarVisibility="Disabled">
+					<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+				</ScrollViewer>
+			</ControlTemplate>
+		</ItemsControl.Template>
+
+		<ItemsControl.ItemsPanel>
+			<ItemsPanelTemplate>
+				<VirtualizingStackPanel ClipToBounds="False" />
+			</ItemsPanelTemplate>
+		</ItemsControl.ItemsPanel>
+
+		<ItemsControl.ItemTemplate>
+			<DataTemplate>
+				<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
+					<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
+				</Border>
+			</DataTemplate>
+		</ItemsControl.ItemTemplate>
+	</ItemsControl>
+</UserControl>

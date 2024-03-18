@@ -28,4 +28,8 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CompositionScroll\CompositionScroll.csproj" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <UpToDateCheckInput Remove="Pages\VirtualizingPage.axaml" />
+	</ItemGroup>
 </Project>

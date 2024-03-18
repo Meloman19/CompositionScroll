@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Metadata;
-using System;
 using System.Collections.Generic;
 
 namespace CompositionScroll.DesktopExample
@@ -9,24 +8,19 @@ namespace CompositionScroll.DesktopExample
     public sealed class TemplateSelector : IDataTemplate
     {
         [Content]
-        public Dictionary<Type, IDataTemplate> Templates { get; } = new Dictionary<Type, IDataTemplate>();
+        public Dictionary<string, IDataTemplate> Templates { get; } = new Dictionary<string, IDataTemplate>();
 
         public Control Build(object param)
         {
-            var data = (param as ListViewModel).Data;
-            return Templates[data.GetType()].Build(data);
+            return Templates[param as string].Build(param);
         }
 
         public bool Match(object param)
         {
-            var data = (param as ListViewModel)?.Data;
-            if (data == null)
+            if (param is not string key)
                 return false;
 
-            if (Templates.ContainsKey(data.GetType()))
-                return true;
-
-            return false;
+            return Templates.ContainsKey(key);
         }
     }
 }

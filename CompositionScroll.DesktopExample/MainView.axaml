@@ -2,140 +2,50 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="clr-namespace:CompositionScroll.DesktopExample"
-			 xmlns:scroll="using:CompositionScroll"
-			 xmlns:example="using:CompositionScroll.DesktopExample"
+			 xmlns:local="using:CompositionScroll.DesktopExample"
+			 xmlns:pages="using:CompositionScroll.DesktopExample.Pages"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="CompositionScroll.DesktopExample.MainView"
-             x:DataType="vm:MainViewModel">
+             x:Class="CompositionScroll.DesktopExample.MainView">
 	<UserControl.Resources>
-		<ControlTheme x:Key="{x:Type ScrollViewer}" TargetType="ScrollViewer">
-			<Setter Property="Background" Value="Transparent" />
-			<Setter Property="Template">
-				<ControlTemplate>
-					<Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
-						<scroll:CompositionScrollContentPresenter
-							Name="PART_ContentPresenter"
-							Grid.Row="0"
-							Grid.Column="0"
-							Grid.RowSpan="2"
-							Grid.ColumnSpan="2"
-							Background="{TemplateBinding Background}"
-							HorizontalSnapPointsType="{TemplateBinding HorizontalSnapPointsType}"
-							VerticalSnapPointsType="{TemplateBinding VerticalSnapPointsType}"
-							HorizontalSnapPointsAlignment="{TemplateBinding HorizontalSnapPointsAlignment}"
-							VerticalSnapPointsAlignment="{TemplateBinding VerticalSnapPointsAlignment}"
-							Padding="{TemplateBinding Padding}"
-							ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}"
-							MousePressedScroll="True"
-							MousePressedScrollInertia="True" />
-						<ScrollBar Name="PART_HorizontalScrollBar"
-								   Orientation="Horizontal"
-								   Grid.Row="1" />
-						<ScrollBar Name="PART_VerticalScrollBar"
-								   Orientation="Vertical"
-								   Grid.Column="1" />
-						<Panel x:Name="PART_ScrollBarsSeparator"
-							   Grid.Row="1"
-							   Grid.Column="1"
-							   Background="{DynamicResource ScrollViewerScrollBarsSeparatorBackground}"
-							   Opacity="0">
-							<Panel.Transitions>
-								<Transitions>
-									<DoubleTransition Property="Opacity" Duration="0:0:0.1" />
-								</Transitions>
-							</Panel.Transitions>
-						</Panel>
-					</Grid>
-				</ControlTemplate>
-			</Setter>
-			<Style Selector="^[IsExpanded=true] /template/ Panel#PART_ScrollBarsSeparator">
-				<Setter Property="Opacity" Value="1" />
-			</Style>
-		</ControlTheme>
-
-		<example:TemplateSelector x:Key="TemplateSelector">
-			<DataTemplate x:Key="{x:Type example:TextBoxViewModel}">
-				<TextBox Text="{Binding Data.ExampleText}"
-						 TextWrapping="Wrap"
-						 Grid.Row="1"/>
+		<local:TemplateSelector x:Key="TemplateSelector">
+			<DataTemplate x:Key="TextBox">
+				<pages:TextBoxPage />
 			</DataTemplate>
 
-			<DataTemplate x:Key="{x:Type example:StackPanelViewModel}">
-				<ItemsControl Grid.Row="1"
-							  Grid.Column="2"
-							  ItemsSource="{Binding Data.ExampleCollection}">
-					<ItemsControl.Template>
-						<ControlTemplate>
-							<ScrollViewer HorizontalScrollBarVisibility="Disabled">
-								<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
-							</ScrollViewer>
-						</ControlTemplate>
-					</ItemsControl.Template>
-
-					<ItemsControl.ItemsPanel>
-						<ItemsPanelTemplate>
-							<StackPanel ClipToBounds="False" />
-						</ItemsPanelTemplate>
-					</ItemsControl.ItemsPanel>
-
-					<ItemsControl.ItemTemplate>
-						<DataTemplate>
-							<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
-								<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
-							</Border>
-						</DataTemplate>
-					</ItemsControl.ItemTemplate>
-				</ItemsControl>
+			<DataTemplate x:Key="StackPanel">
+				<pages:StackPanelPage />
 			</DataTemplate>
 
-			<DataTemplate x:Key="{x:Type example:ItemsRepeaterViewModel}">
-				<ScrollViewer
-					HorizontalScrollBarVisibility="Disabled"
-					Grid.Row="1"
-					Grid.Column="1">
-					<ItemsRepeater ItemsSource="{Binding Data.ExampleCollection}">
-						<ItemsRepeater.ItemTemplate>
-							<DataTemplate>
-								<Border BorderThickness="1" BorderBrush="Gray" Margin="1" CornerRadius="3">
-									<TextBlock Text="{Binding Text}" FontSize="20" MaxLines="2" TextWrapping="Wrap" />
-								</Border>
-							</DataTemplate>
-						</ItemsRepeater.ItemTemplate>
-
-						<ItemsRepeater.Layout>
-							<StackLayout />
-						</ItemsRepeater.Layout>
-					</ItemsRepeater>
-				</ScrollViewer>
+			<DataTemplate x:Key="VirtualizingStackPanel">
+				<pages:VirtualizingPage />
 			</DataTemplate>
 
-			<DataTemplate x:Key="{x:Type example:ImageViewModel}">
-				<ScrollViewer 
-					HorizontalScrollBarVisibility="Visible"
-					VerticalScrollBarVisibility="Visible"
-					Width="400"
-					Height="400">
-					<Image Width="800"
-						   Height="800"
-						   Stretch="UniformToFill"
-						   Source="/Assets/delicate-arch-896885_640.jpg" />
-				</ScrollViewer>
+			<DataTemplate x:Key="ItemsRepeater">
+				<pages:ItemsRepeaterPage />
 			</DataTemplate>
-		</example:TemplateSelector>
+
+			<DataTemplate x:Key="Image">
+				<pages:ImageViewerPage />
+			</DataTemplate>
+		</local:TemplateSelector>
 	</UserControl.Resources>
-
-	<Design.DataContext>
-		<vm:MainViewModel />
-	</Design.DataContext>
 
 	<Grid ColumnDefinitions="200, 10, *">
 		<Grid>
 			<ListBox x:Name="ListBox"
-					 ItemsSource="{Binding Items}"
 					 SelectedIndex="0"
-					 SelectionMode="Single"
-					 DisplayMemberBinding="{Binding Header}" />
+					 SelectionMode="Single">
+				<ListBoxItem Content="Text Box (10000 words)"
+							 Tag="TextBox"/>
+				<ListBoxItem Content="StackPanel (1000 items)"
+							 Tag="StackPanel" />
+				<ListBoxItem Content="VirtualizingStackPanel (1000 items)"
+							 Tag="VirtualizingStackPanel" />
+				<ListBoxItem Content="ItemsRepeater (1000 items)"
+							 Tag="ItemsRepeater" />
+				<ListBoxItem Content="Image"
+							 Tag="Image" />
+			</ListBox>
 		</Grid>
 
 		<GridSplitter Margin="2" BorderThickness="1" BorderBrush="Gray"
@@ -143,7 +53,7 @@
 					  ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
 
 		<Grid Grid.Column="2">
-			<ContentControl Content="{Binding ElementName=ListBox, Path=SelectedItem}"
+			<ContentControl Content="{Binding ElementName=ListBox, Path=SelectedItem.Tag}"
 							ContentTemplate="{StaticResource TemplateSelector}" />
 		</Grid>
 	</Grid>

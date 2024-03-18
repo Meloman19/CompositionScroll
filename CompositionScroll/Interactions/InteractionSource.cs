@@ -42,7 +42,7 @@ namespace CompositionScroll.Interactions
 
         public bool MousePressedScrollInertia { get; set; } = true;
 
-        public double ScrollStartDistance { get; set; } = 30;
+        public double ScrollStartDistance { get; set; } = 10;
 
         private void Target_PointerWheelChanged(object sender, PointerWheelEventArgs e)
         {
