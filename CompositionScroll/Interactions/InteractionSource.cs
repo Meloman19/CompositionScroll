@@ -124,7 +124,8 @@ namespace CompositionScroll.Interactions
             if (_scrolling && IsScrollInertiaEnabled)
             {
                 EndGesture();
-                StartInertia(inertia);
+                if (e.Pointer.Type != PointerType.Mouse || MousePressedScrollInertia)
+                    StartInertia(inertia);
             }
             else
             {
