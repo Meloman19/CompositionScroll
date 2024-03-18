@@ -13,7 +13,6 @@ namespace CompositionScroll.Interactions.Server
             private static readonly double DECELERATION_RATE = Math.Log(0.78) / Math.Log(0.9);
 
             private readonly ServerInteractionTracker _interactionTracker;
-            private TimeSpan? _startTime;
             private bool _isEnded = false;
 
             private Moving(ServerInteractionTracker interactionTracker)
@@ -33,19 +32,16 @@ namespace CompositionScroll.Interactions.Server
 
             private double Duration { get; set; }
 
-            public bool IsStarted => _startTime.HasValue;
-
             public bool IsEnded => _isEnded;
 
             public int GestureId { get; private set; }
 
             public bool Gesture { get; private set; }
 
+            public TimeSpan StartTime { get; private set; }
+
             public void Move(TimeSpan now)
             {
-                if (!_startTime.HasValue)
-                    _startTime = now;
-
                 if (_isEnded)
                     return;
 
@@ -54,7 +50,7 @@ namespace CompositionScroll.Interactions.Server
                     return;
                 }
 
-                var deltaT = now - _startTime.Value;
+                var deltaT = now - StartTime;
                 var deltaTSec = deltaT.TotalSeconds;
 
                 Vector3D newCurrentPosition;
@@ -89,6 +85,7 @@ namespace CompositionScroll.Interactions.Server
                     Velocity = startVelocity,
                     Acceleration = acceleration,
                     Duration = duration.TotalSeconds,
+                    StartTime = interactionTracker.Compositor.ServerNow,
                     Gesture = false
                 };
             }
@@ -110,6 +107,7 @@ namespace CompositionScroll.Interactions.Server
                     Velocity = startVelocity,
                     Acceleration = acceleration,
                     Duration = durationSec,
+                    StartTime = interactionTracker.Compositor.ServerNow,
                     Gesture = false
                 };
             }
@@ -141,6 +139,7 @@ namespace CompositionScroll.Interactions.Server
                     Velocity = velocity,
                     Acceleration = acceleration,
                     Duration = duration.TotalSeconds,
+                    StartTime = _interactionTracker.Compositor.ServerNow,
                     Gesture = false
                 };
             }
