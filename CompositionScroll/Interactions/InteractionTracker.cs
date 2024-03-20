@@ -9,43 +9,12 @@ using System.Threading;
 
 namespace CompositionScroll.Interactions
 {
-    internal enum RequestType
-    {
-        AnimatePositionBy,
-        ShiftPositionBy,
-        UpdatePositionTo,
-        AnimatePositionByVel,
-        GestureStart,
-        GestureEnd,
-        GestureMove,
-    }
-
-    internal readonly struct InteractionTrackerRequest
-    {
-        public InteractionTrackerRequest(RequestType requestType, Vector3D value, long requestId)
-        {
-            Type = requestType;
-            VectorValue = value;
-            RequestId = requestId;
-        }
-
-        public RequestType Type { get; init; }
-
-        public Vector3D? VectorValue { get; init; }
-
-        public TimeSpan? TimeSpanValue { get; init; }
-
-        public int? IntValue { get; init; }
-
-        public long RequestId { get; init; }
-    }
-
     public sealed class InteractionTracker : CompositionObject
     {
         private InteractionSource _interactionSource;
 
         private readonly IInteractionTrackerOwner _owner;
-        private List<InteractionTrackerRequest> _messages;
+        private InteractionTrackerMessage _message = new();
         private long _requestId = 0;
 
         internal InteractionTracker(Compositor compositor, IInteractionTrackerOwner owner)
@@ -85,13 +54,13 @@ namespace CompositionScroll.Interactions
             SendHandlerMessage(request);
         }
 
-        internal void AnimatePositionByVel(Vector3D vel)
+        public void AnimatePositionTo(Vector3D offsetPosition)
         {
             var requestId = Interlocked.Increment(ref _requestId);
             var request = new InteractionTrackerRequest
             {
-                Type = RequestType.AnimatePositionByVel,
-                VectorValue = vel,
+                Type = RequestType.AnimatePositionTo,
+                VectorValue = offsetPosition,
                 RequestId = requestId,
             };
             SendHandlerMessage(request);
@@ -110,39 +79,52 @@ namespace CompositionScroll.Interactions
             SendHandlerMessage(request);
         }
 
-        internal void BeginUserInteraction(int gestureId)
+        internal void InteractionStart(int interactionId)
         {
             var requestId = Interlocked.Increment(ref _requestId);
             var request = new InteractionTrackerRequest
             {
-                Type = RequestType.GestureStart,
+                Type = RequestType.InteractionStart,
                 RequestId = requestId,
-                IntValue = gestureId
+                IntValue = interactionId
             };
             SendHandlerMessage(request);
         }
 
-        internal void GestureEnd(int gestureId)
+        internal void InteractionMove(int interactionId, Vector3D delta)
         {
             var requestId = Interlocked.Increment(ref _requestId);
             var request = new InteractionTrackerRequest
             {
-                Type = RequestType.GestureEnd,
+                Type = RequestType.InteractionMove,
                 RequestId = requestId,
-                IntValue = gestureId
-            };
-            SendHandlerMessage(request);
-        }
-
-        internal void GestureMove(int gestureId, Vector3D delta)
-        {
-            var requestId = Interlocked.Increment(ref _requestId);
-            var request = new InteractionTrackerRequest
-            {
-                Type = RequestType.GestureMove,
-                RequestId = requestId,
-                IntValue = gestureId,
+                IntValue = interactionId,
                 VectorValue = delta,
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void InteractionEnd(int interactionId)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.InteractionEnd,
+                RequestId = requestId,
+                IntValue = interactionId
+            };
+            SendHandlerMessage(request);
+        }
+
+        internal void InteractionEndWithInertia(int interactionId, Vector3D velocity)
+        {
+            var requestId = Interlocked.Increment(ref _requestId);
+            var request = new InteractionTrackerRequest
+            {
+                Type = RequestType.InteractionEndWithInertia,
+                RequestId = requestId,
+                VectorValue = velocity,
+                IntValue = interactionId
             };
             SendHandlerMessage(request);
         }
@@ -167,55 +149,78 @@ namespace CompositionScroll.Interactions
 
         private void SendHandlerMessage(InteractionTrackerRequest message)
         {
-            (_messages ??= new()).Add(message);
+            _message.Requests.Add(message);
             RegisterForSerialization();
         }
 
         public override void SerializeChangesCore(BatchStreamWriter writer)
         {
             base.SerializeChangesCore(writer);
-            if (_messages == null || _messages.Count == 0)
-                writer.Write(0);
-            else
-            {
-                writer.Write(_messages.Count);
-                foreach (var m in _messages)
-                    writer.Write(m);
-                _messages.Clear();
-            }
+            _message.Serialize(writer);
+            _message.Clear();
         }
 
-        private long _uiRequestId = 0;
+        #region Owner
+
+        private readonly object _valuesChangedLocker = new();
+        private InteractionTrackerValuesChangedArgs _valuesChangedArg;
+
         internal void ValuesChanged(Vector3D position, long requestId)
         {
             if (_owner == null)
                 return;
 
             var arg = new InteractionTrackerValuesChangedArgs(position, requestId);
-            var uiRequestId = Interlocked.Increment(ref _uiRequestId);
-            Compositor.Dispatcher.InvokeAsync(() => UIValuesChanged(uiRequestId, arg), DispatcherPriority.Background);
+            bool dispatch = false;
+            lock (_valuesChangedLocker)
+            {
+                dispatch = _valuesChangedArg == null;
+                _valuesChangedArg = arg;
+            }
+
+            if (dispatch)
+                Compositor.Dispatcher.InvokeAsync(UIValuesChanged, DispatcherPriority.Input);
         }
 
-        private void UIValuesChanged(long requestId, InteractionTrackerValuesChangedArgs arg)
+        private void UIValuesChanged()
         {
-            var currentRequestId = Interlocked.Read(ref _uiRequestId);
-            if (currentRequestId == requestId)
-                _owner.ValuesChanged(this, arg);
-        }
-    }
+            InteractionTrackerValuesChangedArgs arg;
+            lock (_valuesChangedLocker)
+            {
+                arg = _valuesChangedArg;
+                _valuesChangedArg = null;
+            }
 
-    public static class Factory
-    {
-        public static InteractionTracker CreateInteractionTracker(this Compositor compositor)
-        {
-            return compositor.CreateInteractionTracker(null);
+            _owner.ValuesChanged(this, arg);
         }
 
-        public static InteractionTracker CreateInteractionTracker(this Compositor compositor, IInteractionTrackerOwner owner)
+        internal void IdleStateEntered(long requestId)
         {
-            var tracker = new InteractionTracker(compositor, owner);
-            tracker.Init();
-            return tracker;
+            if (_owner == null)
+                return;
+
+            var arg = new InteractionTrackerIdleStateEnteredArgs(requestId);
+            Compositor.Dispatcher.InvokeAsync(() => _owner.IdleStateEntered(this, arg), DispatcherPriority.Input);
         }
+
+        internal void InertiaStateEntered(bool fromImpulse, Vector3D? modifiedRestingPosition, Vector3D naturalRestingPosition, Vector3D positionVelocity, long requestId)
+        {
+            if (_owner == null)
+                return;
+
+            var arg = new InteractionTrackerInertiaStateEnteredArgs(fromImpulse, modifiedRestingPosition, naturalRestingPosition, positionVelocity, requestId);
+            Compositor.Dispatcher.InvokeAsync(() => _owner.InertiaStateEntered(this, arg), DispatcherPriority.Input);
+        }
+
+        internal void InteractingStateEntered(long requestId)
+        {
+            if (_owner == null)
+                return;
+
+            var arg = new InteractionTrackerInteractingStateEnteredArgs(requestId);
+            Compositor.Dispatcher.InvokeAsync(() => _owner.InteractingStateEntered(this, arg), DispatcherPriority.Input);
+        }
+
+        #endregion
     }
 }

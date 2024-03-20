@@ -9,32 +9,50 @@ namespace CompositionScroll.Interactions.Server
 {
     internal sealed partial class ServerInteractionTracker : ServerObject, IDisposable, IServerClockItem
     {
+        internal static CompositionProperty IdOfPositionProperty = CompositionProperty.Register();
+        internal static CompositionProperty IdOfMinPositionProperty = CompositionProperty.Register();
+        internal static CompositionProperty IdOfMaxPositionProperty = CompositionProperty.Register();
+
+        private Vector3D _position;
+        private Vector3D _minPosition;
+        private Vector3D _maxPosition;
+
         private enum State
         {
             Idle,
-            Inertia
+            Inertia,
+            Interaction
         }
 
-        private Moving _moving;
+        private Scroller _scroller;
+        private InteractionScroller _interactionScroller;
         private State _state = State.Idle;
         private InteractionTracker _interactionTracker;
 
         public ServerInteractionTracker(ServerCompositor compositor)
             : base(compositor)
         {
+            _scroller = new Scroller(this);
+            _interactionScroller = new();
         }
 
-        internal static CompositionProperty IdOfPositionProperty = CompositionProperty.Register();
-        private Vector3D _position;
         public Vector3D Position
         {
             get => GetAnimatedValue(IdOfPositionProperty, ref _position);
-            set => SetAnimatedValue(IdOfPositionProperty, out _position, value);
+            private set => SetAnimatedValue(IdOfPositionProperty, out _position, value);
         }
 
-        public Vector3D MinPosition { get; set; }
+        public Vector3D MinPosition
+        {
+            get => GetAnimatedValue(IdOfMinPositionProperty, ref _minPosition);
+            set => SetAnimatedValue(IdOfMinPositionProperty, out _minPosition, value);
+        }
 
-        public Vector3D MaxPosition { get; set; }
+        public Vector3D MaxPosition
+        {
+            get => GetAnimatedValue(IdOfMaxPositionProperty, ref _maxPosition);
+            set => SetAnimatedValue(IdOfMaxPositionProperty, out _maxPosition, value);
+        }
 
         public void Init(InteractionTracker tracker)
         {
@@ -49,75 +67,64 @@ namespace CompositionScroll.Interactions.Server
 
         public void OnTick()
         {
-            if (_moving == null)
-                return;
+            switch (_state)
+            {
+                case State.Idle:
+                    return;
 
-            var now = Compositor.ServerNow;
-            _moving.Move(now);
-
-            var newPosition = _moving.CurrentPosition;
-
-            if (_moving.IsEnded)
-                _moving = null;
-
-            SetPosition(newPosition, 0);
+                case State.Inertia:
+                    if (!_scroller.Tick())
+                    {
+                        SetPosition(_scroller.Position, 0);
+                        GoToState(State.Idle);
+                    }
+                    else if (!SetPosition(_scroller.Position, 0))
+                    {
+                        _scroller.ForceFinished();
+                        GoToState(State.Idle);
+                    }
+                    return;
+                case State.Interaction:
+                    SetPosition(_interactionScroller.Position, 0);
+                    if (_interactionScroller.Finished)
+                    {
+                        GoToState(State.Idle);
+                    }
+                    return;
+            }
         }
 
-        private readonly TimeSpan _defaultDuration = TimeSpan.FromMilliseconds(250);
-        private void OnMessage(object message)
+        private void GoToState(State state, bool force = false)
         {
-            if (message is not InteractionTrackerRequest request)
+            if (state == _state && !force)
                 return;
 
-            switch (request.Type)
+            var prevState = _state;
+            _state = state;
+            switch (state)
             {
-                case RequestType.AnimatePositionBy:
-                    if (_moving == null)
-                        _moving = Moving.Animate(this, request.TimeSpanValue ?? _defaultDuration, request.VectorValue.Value);
-                    else if (!_moving.Gesture)
-                        _moving = _moving.AnimateBy(request.TimeSpanValue ?? _defaultDuration, request.VectorValue.Value);
+                case State.Idle:
+                    _interactionTracker.IdleStateEntered(0);
                     break;
-                case RequestType.AnimatePositionByVel:
-                    if (_moving == null)
-                        _moving = Moving.AnimateVelocity(this, request.VectorValue.Value);
+                case State.Inertia:
+                    _interactionTracker.InertiaStateEntered(prevState != State.Interaction, null, _scroller.EndPosition, _scroller.Velocity, 0);
                     break;
-                case RequestType.UpdatePositionTo:
-                    if (_moving == null || !_moving.Gesture)
-                    {
-                        _moving = null;
-                        SetPosition(request.VectorValue.Value, request.RequestId);
-                    }
-                    break;
-                case RequestType.ShiftPositionBy:
-                    if (_moving == null)
-                        SetPosition(_position + request.VectorValue.Value, request.RequestId);
-                    else
-                        _moving = _moving.ShiftBy(request.VectorValue.Value);
-                    break;
-                case RequestType.GestureStart:
-                    if (_moving == null || !_moving.Gesture)
-                        _moving = Moving.StartGesture(this, request.IntValue.Value);
-                    break;
-                case RequestType.GestureEnd:
-                    if (_moving != null && _moving.Gesture)
-                        _moving = null;
-                    break;
-                case RequestType.GestureMove:
-                    if (_moving != null && _moving.Gesture)
-                        _moving.Delta(request.VectorValue.Value);
-                    break;
-                default:
+                case State.Interaction:
+                    _interactionTracker.InteractingStateEntered(0);
                     break;
             }
         }
 
-        private void SetPosition(Vector3D newPosition, long requestId)
+        private bool SetPosition(Vector3D newPosition, long requestId)
         {
-            if (_position == newPosition)
-                return;
+            var newPositionClamp = Vector3D.Clamp(newPosition, MinPosition, MaxPosition);
 
-            Position = newPosition;
+            if (_position == newPositionClamp)
+                return newPositionClamp == newPosition;
+
+            Position = newPositionClamp;
             _interactionTracker.ValuesChanged(_position, requestId);
+            return newPositionClamp == newPosition;
         }
 
         protected override void DeserializeChangesCore(BatchStreamReader reader, TimeSpan committedAt)
@@ -125,30 +132,115 @@ namespace CompositionScroll.Interactions.Server
             base.DeserializeChangesCore(reader, committedAt);
             var count = reader.Read<int>();
             for (var c = 0; c < count; c++)
+                OnMessage(reader.Read<InteractionTrackerRequest>());
+        }
+
+        private void OnMessage(InteractionTrackerRequest request)
+        {
+            switch (request.Type)
             {
-                try
-                {
-                    OnMessage(reader.Read<InteractionTrackerRequest>());
-                }
-                catch (Exception e)
-                {
-                    throw;
-                }
+                case RequestType.ShiftPositionBy:
+                    {
+                        var shift = request.VectorValue.Value;
+                        switch (_state)
+                        {
+                            case State.Idle:
+                                SetPosition(_position + shift, 0);
+                                break;
+                            case State.Inertia:
+                                _scroller.Shift(shift);
+                                break;
+                            case State.Interaction:
+                                _interactionScroller.Shift(shift);
+                                break;
+                        }
+                    }
+                    break;
+                case RequestType.AnimatePositionBy:
+                    if (_state != State.Interaction)
+                    {
+                        _scroller.ForcePosition(_position);
+                        _scroller.StartInertia(request.VectorValue.Value, request.TimeSpanValue ?? TimeSpan.FromMilliseconds(250));
+                        GoToState(State.Inertia, true);
+                    }
+                    break;
+                case RequestType.AnimatePositionTo:
+                    if (_state != State.Interaction)
+                    {
+                        _scroller.ForcePosition(_position);
+                        _scroller.StartInertiaTo(request.VectorValue.Value, request.TimeSpanValue ?? TimeSpan.FromMilliseconds(250));
+                        GoToState(State.Inertia, true);
+                    }
+                    break;
+                case RequestType.UpdatePositionTo:
+                    if (_state != State.Interaction)
+                    {
+                        _scroller.ForceFinished();
+                        _interactionScroller.EndInteraction();
+                        SetPosition(request.VectorValue.Value, request.RequestId);
+                    }
+                    break;
+
+                // Interaction
+                case RequestType.InteractionStart:
+                    _scroller.ForceFinished();
+                    _interactionScroller.StartInteraction(_position);
+                    GoToState(State.Interaction);
+                    break;
+                case RequestType.InteractionMove:
+                    if (_state == State.Interaction)
+                    {
+                        _interactionScroller.Move(request.VectorValue.Value);
+                    }
+                    break;
+                case RequestType.InteractionEnd:
+                    if (_state == State.Interaction)
+                    {
+                        _interactionScroller.EndInteraction();
+                        GoToState(State.Idle);
+                    }
+                    break;
+                case RequestType.InteractionEndWithInertia:
+                    if (_state == State.Interaction)
+                    {
+                        _interactionScroller.EndInteraction();
+                        _scroller.ForceFinished();
+                        _scroller.ForcePosition(_position);
+                        _scroller.StartFlingInertia(request.VectorValue.Value);
+                        GoToState(State.Inertia);
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
         public override ExpressionVariant GetPropertyForAnimation(string name)
         {
-            if (name == nameof(Position))
-                return Position;
+            switch (name)
+            {
+                case nameof(Position):
+                    return Position;
+                case nameof(MinPosition):
+                    return MinPosition;
+                case nameof(MaxPosition):
+                    return MaxPosition;
+            }
 
             return base.GetPropertyForAnimation(name);
         }
 
         public override CompositionProperty GetCompositionProperty(string fieldName)
         {
-            if (fieldName == nameof(Position))
-                return IdOfPositionProperty;
+            switch (fieldName)
+            {
+                case nameof(Position):
+                    return IdOfPositionProperty;
+                case nameof(MinPosition):
+                    return IdOfMinPositionProperty;
+                case nameof(MaxPosition):
+                    return IdOfMaxPositionProperty;
+            }
 
             return base.GetCompositionProperty(fieldName);
         }

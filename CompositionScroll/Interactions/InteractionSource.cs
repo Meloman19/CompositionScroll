@@ -121,11 +121,11 @@ namespace CompositionScroll.Interactions
             var inertia = _velocityTracker?.GetFlingVelocity().PixelsPerSecond ?? Vector.Zero;
             inertia = FitVector(inertia, CanHorizontallyScroll, CanVerticallyScroll);
 
-            if (_scrolling && IsScrollInertiaEnabled)
+            if (_scrolling &&
+                IsScrollInertiaEnabled &&
+                (e.Pointer.Type != PointerType.Mouse || MousePressedScrollInertia))
             {
-                EndGesture();
-                if (e.Pointer.Type != PointerType.Mouse || MousePressedScrollInertia)
-                    StartInertia(inertia);
+                EndGesture(inertia);
             }
             else
             {
@@ -141,9 +141,9 @@ namespace CompositionScroll.Interactions
             EndGesture();
         }
 
-        private void EndGesture()
+        private void EndGesture(Vector? inertia = null)
         {
-            EndUserInteraction();
+            EndUserInteraction(inertia);
             _tracking = null;
             if (_scrolling)
             {
@@ -165,24 +165,24 @@ namespace CompositionScroll.Interactions
 
         private void BeginUserInteraction()
         {
-            Tracker.BeginUserInteraction(_interactionId);
+            Tracker.InteractionStart(_interactionId);
         }
 
         private void UserInteraction(Vector delta)
         {
             var delta3D = new Vector3D(delta.X, delta.Y, 0);
-            Tracker.GestureMove(_interactionId, delta3D);
+            Tracker.InteractionMove(_interactionId, delta3D);
         }
 
-        private void EndUserInteraction()
+        private void EndUserInteraction(Vector? inertia = null)
         {
-            Tracker.GestureEnd(_interactionId);
-        }
-
-        private void StartInertia(Vector inertia)
-        {
-            var inertia3D = new Vector3D(inertia.X, inertia.Y, 0);
-            Tracker.AnimatePositionByVel(inertia3D);
+            if (inertia == null)
+                Tracker.InteractionEnd(_interactionId);
+            else
+            {
+                var inertia3D = new Vector3D(inertia.Value.X, inertia.Value.Y, 0);
+                Tracker.InteractionEndWithInertia(_interactionId, inertia3D);
+            }
         }
 
         internal void SetInteractionTracker(InteractionTracker tracker)

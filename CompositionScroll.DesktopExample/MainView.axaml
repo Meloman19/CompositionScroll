@@ -27,6 +27,10 @@
 			<DataTemplate x:Key="Image">
 				<pages:ImageViewerPage />
 			</DataTemplate>
+			
+			<DataTemplate x:Key="Snapping">
+				<pages:SnappingPage />
+			</DataTemplate>
 		</local:TemplateSelector>
 	</UserControl.Resources>
 
@@ -45,6 +49,8 @@
 							 Tag="ItemsRepeater" />
 				<ListBoxItem Content="Image"
 							 Tag="Image" />
+				<ListBoxItem Content="Snapping"
+							 Tag="Snapping" />
 			</ListBox>
 		</Grid>
 
