@@ -174,7 +174,7 @@ namespace CompositionScroll
                 var controlSize = control.Size;
                 var controlOffset = control.Offset;
 
-                if (control.Parent is object && control.Parent != root)
+                if (control.Parent is not null && control != root)
                 {
                     CalculateEffectiveViewport(target, control.Parent, root, ref viewport);
                 }
