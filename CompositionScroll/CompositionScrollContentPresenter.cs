@@ -94,15 +94,12 @@ namespace CompositionScroll
             ScrollViewer.IsScrollChainingEnabledProperty.AddOwner<CompositionScrollContentPresenter>();
 
         private InteractionTracker _interactionTracker;
-        private ImplicitAnimationCollection _scrollAnimation;
         private ExpressionAnimation _offsetAnimation;
         private bool _compositionUpdate;
         private long? requestId;
 
-        private bool _arranging;
         private Size _extent;
         private Size _viewport;
-        private Dictionary<int, Vector>? _scrollGestureSnapPoints;
         private HashSet<Control>? _anchorCandidates;
         private Control? _anchorElement;
         private Rect _anchorElementBounds;
@@ -329,7 +326,8 @@ namespace CompositionScroll
             base.OnDetachedFromVisualTree(e);
             _interactionTracker?.Dispose();
             _interactionTracker = null;
-            _scrollAnimation = null;
+            _offsetAnimation?.Dispose();
+            _offsetAnimation = null;
         }
 
         /// <summary>
@@ -440,22 +438,6 @@ namespace CompositionScroll
                 CanHorizontallyScroll ? Math.Max(Child!.DesiredSize.Width, finalSize.Width) : finalSize.Width,
                 CanVerticallyScroll ? Math.Max(Child!.DesiredSize.Height, finalSize.Height) : finalSize.Height);
 
-            Vector TrackAnchor()
-            {
-                // If we have an anchor and its position relative to Child has changed during the
-                // arrange then that change wasn't just due to scrolling (as scrolling doesn't adjust
-                // relative positions within Child).
-                if (_anchorElement != null &&
-                    TranslateBounds(_anchorElement, Child!, out var updatedBounds) &&
-                    updatedBounds.Position != _anchorElementBounds.Position)
-                {
-                    var offset = updatedBounds.Position - _anchorElementBounds.Position;
-                    return offset;
-                }
-
-                return default;
-            }
-
             var isAnchoring = Offset.X >= EdgeDetectionTolerance || Offset.Y >= EdgeDetectionTolerance;
 
             if (isAnchoring)
@@ -464,7 +446,7 @@ namespace CompositionScroll
                 EnsureAnchorElementSelection();
 
                 // Do the arrange.
-                ArrangeOverrideImpl(size, -Offset);
+                base.ArrangeOverride(size);
 
                 // If the anchor moved during the arrange, we need to adjust the offset and do another arrange.
                 var anchorShift = TrackAnchor();
@@ -489,23 +471,19 @@ namespace CompositionScroll
 
                     try
                     {
-                        _arranging = true;
                         _compositionUpdate = true;
                         _interactionTracker?.ShiftPositionBy(new Vector3D(anchorShift.X, anchorShift.Y, 0));
                         SetCurrentValue(OffsetProperty, newOffset);
                     }
                     finally
                     {
-                        _arranging = false;
                         _compositionUpdate = false;
                     }
-
-                    ArrangeOverrideImpl(size, -Offset);
                 }
             }
             else
             {
-                ArrangeOverrideImpl(size, -Offset);
+                base.ArrangeOverride(size);
             }
 
             Viewport = finalSize;
@@ -544,11 +522,6 @@ namespace CompositionScroll
         {
             if (change.Property == OffsetProperty)
             {
-                if (!_arranging)
-                {
-                    InvalidateArrange();
-                }
-
                 if (!_compositionUpdate)
                 {
                     var offset = change.GetNewValue<Vector>();
@@ -662,6 +635,22 @@ namespace CompositionScroll
                 _anchorElement = bestCandidate;
                 _anchorElementBounds = unscrolledBounds;
             }
+        }
+
+        private Vector TrackAnchor()
+        {
+            // If we have an anchor and its position relative to Child has changed during the
+            // arrange then that change wasn't just due to scrolling (as scrolling doesn't adjust
+            // relative positions within Child).
+            if (_anchorElement != null &&
+                TranslateBounds(_anchorElement, Child!, out var updatedBounds) &&
+                updatedBounds.Position != _anchorElementBounds.Position)
+            {
+                var offset = updatedBounds.Position - _anchorElementBounds.Position;
+                return offset;
+            }
+
+            return default;
         }
 
         private bool GetViewportBounds(Control element, out Rect bounds)
@@ -947,7 +936,7 @@ namespace CompositionScroll
 
                 _offsetAnimation = compositionVisual.Compositor.CreateExpressionAnimation();
                 _offsetAnimation.Expression = "-Tracker.Position";
-                _offsetAnimation.Target = "Offset";
+                _offsetAnimation.Target = "Offset";                
                 _offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
             }
         }
@@ -962,7 +951,7 @@ namespace CompositionScroll
                 return;
 
             EnsureScrollAnimation();
-            vis.StartAnimation("Offset", _offsetAnimation);
+            vis.StartAnimation("Offset", _offsetAnimation);            
         }
 
         private void UpdateInteractionOptions()
@@ -977,8 +966,8 @@ namespace CompositionScroll
             source.CanVerticallyScroll = CanVerticallyScroll;
             source.CanHorizontallyScroll = CanHorizontallyScroll;
             source.IsScrollInertiaEnabled = ScrollViewer.GetIsScrollInertiaEnabled(this);
-            source.MousePressedScroll = MousePressedScroll;
-            source.MousePressedScrollInertia = MousePressedScrollInertia;
+            source.MouseScroll = MousePressedScroll;
+            source.IsMouseScrollInertiaEnabled = MousePressedScrollInertia;
         }
     }
 }

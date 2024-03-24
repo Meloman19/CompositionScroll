@@ -29,6 +29,8 @@ namespace CompositionScroll.Interactions.Server
         private State _state = State.Idle;
         private InteractionTracker _interactionTracker;
 
+        private bool _maxminInvalidated = false;
+
         public ServerInteractionTracker(ServerCompositor compositor)
             : base(compositor)
         {
@@ -70,6 +72,11 @@ namespace CompositionScroll.Interactions.Server
             switch (_state)
             {
                 case State.Idle:
+                    if (_maxminInvalidated)
+                    {
+                        SetPosition(_position, 0);
+                        _maxminInvalidated = false;
+                    }
                     return;
 
                 case State.Inertia:
@@ -209,6 +216,11 @@ namespace CompositionScroll.Interactions.Server
                         _scroller.StartFlingInertia(request.VectorValue.Value);
                         GoToState(State.Inertia);
                     }
+                    break;
+
+                case RequestType.SetMaxPosition:
+                    MaxPosition = request.VectorValue.Value;
+                    _maxminInvalidated = true;
                     break;
                 default:
                     break;

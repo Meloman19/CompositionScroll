@@ -38,9 +38,9 @@ namespace CompositionScroll.Interactions
 
         public bool IsScrollInertiaEnabled { get; set; } = true;
 
-        public bool MousePressedScroll { get; set; } = false;
+        public bool MouseScroll { get; set; } = false;
 
-        public bool MousePressedScrollInertia { get; set; } = true;
+        public bool IsMouseScrollInertiaEnabled { get; set; } = true;
 
         public double ScrollStartDistance { get; set; } = 10;
 
@@ -67,10 +67,7 @@ namespace CompositionScroll.Interactions
 
         private void Target_PointerPressed(object sender, PointerPressedEventArgs e)
         {
-            if (!e.Pointer.IsPrimary)
-                return;
-
-            if (!MousePressedScroll && e.Pointer.Type == PointerType.Mouse)
+            if (e.Pointer.Type == PointerType.Mouse && !MouseScroll)
                 return;
 
             EndGesture();
@@ -123,7 +120,7 @@ namespace CompositionScroll.Interactions
 
             if (_scrolling &&
                 IsScrollInertiaEnabled &&
-                (e.Pointer.Type != PointerType.Mouse || MousePressedScrollInertia))
+                (e.Pointer.Type != PointerType.Mouse || IsMouseScrollInertiaEnabled))
             {
                 EndGesture(inertia);
             }

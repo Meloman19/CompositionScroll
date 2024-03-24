@@ -144,7 +144,8 @@ namespace CompositionScroll.Interactions
 
         public void SetMaxPosition(Vector3D maxPosition)
         {
-            (Server as ServerInteractionTracker).MaxPosition = maxPosition;
+            var requestId = Interlocked.Increment(ref _requestId);
+            SendHandlerMessage(new InteractionTrackerRequest(RequestType.SetMaxPosition, maxPosition, requestId));
         }
 
         private void SendHandlerMessage(InteractionTrackerRequest message)
