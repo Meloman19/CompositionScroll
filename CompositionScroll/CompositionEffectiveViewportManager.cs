@@ -129,7 +129,7 @@ namespace CompositionScroll
                 _listener.UpdateViewport(_viewport);
             }
 
-            private Rect CalculateEffectiveViewport(ServerCompositionVisual control)
+            private static Rect CalculateEffectiveViewport(ServerCompositionVisual control)
             {
                 var viewport = new Rect(0, 0, double.PositiveInfinity, double.PositiveInfinity);
                 CalculateEffectiveViewport(control, control, ref viewport);
@@ -161,7 +161,10 @@ namespace CompositionScroll
 
                 if (control != target && control.TransformMatrix != Matrix.Identity)
                 {
-                    viewport = viewport.TransformToAABB(control.TransformMatrix);
+                    if (control.TransformMatrix.TryInvert(out var invertedTransform))
+                        viewport = viewport.TransformToAABB(invertedTransform);
+                    else
+                        viewport = default;
                 }
             }
         }
