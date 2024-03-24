@@ -3,6 +3,7 @@ using Avalonia.Layout;
 using Avalonia.Rendering.Composition;
 using Avalonia.Rendering.Composition.Server;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
@@ -10,10 +11,23 @@ using System.Linq;
 
 namespace CompositionScroll
 {
-    public static class CompositionEffectiveViewportManager
+    public class CompositionEffectiveViewportManager
     {
         private static Harmony _harmony;
         private static List<EffectiveViewportListener> _effectiveViewportListeners = new();
+
+        public static readonly AttachedProperty<bool> EffectiveViewportRootProperty
+            = AvaloniaProperty.RegisterAttached<CompositionEffectiveViewportManager, Visual, bool>("EffectiveViewportRoot", defaultValue: false);
+
+        public static void SetEffectiveViewportRoot(Visual element, bool value)
+        {
+            element.SetValue(EffectiveViewportRootProperty, value);
+        }
+
+        public static bool GetEffectiveViewportRoot(Visual element)
+        {
+            return element.GetValue(EffectiveViewportRootProperty);
+        }
 
         public static void Init()
         {
@@ -53,6 +67,8 @@ namespace CompositionScroll
 
         private class EffectiveViewportListener : CompositionObject
         {
+            private Visual _root;
+
             public EffectiveViewportListener(Layoutable layoutable)
                 : base(layoutable.CompositionVisual.Compositor, new ServerEffectiveViewportListener(layoutable.CompositionVisual.Server))
             {
@@ -65,6 +81,17 @@ namespace CompositionScroll
             {
                 var server = Server as ServerEffectiveViewportListener;
                 server.Init(this);
+                UpdateRoot();
+            }
+
+            private void UpdateRoot()
+            {
+                var root = Layoutable.GetVisualAncestors().FirstOrDefault(GetEffectiveViewportRoot);
+                if (root == _root)
+                    return;
+
+                _root = root;
+                (Server as ServerEffectiveViewportListener)?.SetRoot(_root.CompositionVisual.Server);
             }
 
             private readonly object _locker = new();
@@ -100,6 +127,7 @@ namespace CompositionScroll
         {
             private EffectiveViewportListener _listener;
             private ServerCompositionVisual _targetVisual;
+            private ServerCompositionVisual _root;
             private Rect _viewport;
 
             public ServerEffectiveViewportListener(ServerCompositionVisual visual)
@@ -121,7 +149,7 @@ namespace CompositionScroll
 
             public void OnTick()
             {
-                var newViewport = CalculateEffectiveViewport(_targetVisual);
+                var newViewport = CalculateEffectiveViewport(_targetVisual, _root);
                 if (_viewport == newViewport)
                     return;
 
@@ -129,21 +157,26 @@ namespace CompositionScroll
                 _listener.UpdateViewport(_viewport);
             }
 
-            private static Rect CalculateEffectiveViewport(ServerCompositionVisual control)
+            public void SetRoot(ServerCompositionVisual root)
+            {
+                _root = root;
+            }
+
+            private static Rect CalculateEffectiveViewport(ServerCompositionVisual control, ServerCompositionVisual root)
             {
                 var viewport = new Rect(0, 0, double.PositiveInfinity, double.PositiveInfinity);
-                CalculateEffectiveViewport(control, control, ref viewport);
+                CalculateEffectiveViewport(control, control, root, ref viewport);
                 return viewport;
             }
 
-            private static void CalculateEffectiveViewport(ServerCompositionVisual target, ServerCompositionVisual control, ref Rect viewport)
+            private static void CalculateEffectiveViewport(ServerCompositionVisual target, ServerCompositionVisual control, ServerCompositionVisual root, ref Rect viewport)
             {
                 var controlSize = control.Size;
                 var controlOffset = control.Offset;
 
-                if (control.Parent is object)
+                if (control.Parent is object && control.Parent != root)
                 {
-                    CalculateEffectiveViewport(target, control.Parent, ref viewport);
+                    CalculateEffectiveViewport(target, control.Parent, root, ref viewport);
                 }
                 else
                 {
