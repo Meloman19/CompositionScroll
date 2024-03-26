@@ -12,8 +12,7 @@
 
 	<ItemsControl Grid.Row="1"
 				  Grid.Column="2"
-				  ItemsSource="{Binding Items}"
-				  comp:CompositionEffectiveViewportManager.EffectiveViewportRoot="True">
+				  ItemsSource="{Binding Items}">
 		<ItemsControl.Template>
 			<ControlTemplate>
 				<ScrollViewer HorizontalScrollBarVisibility="Disabled">

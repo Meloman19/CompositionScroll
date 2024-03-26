@@ -94,10 +94,11 @@ namespace CompositionScroll
             ScrollViewer.IsScrollChainingEnabledProperty.AddOwner<CompositionScrollContentPresenter>();
 
         private InteractionTracker _interactionTracker;
-        private ExpressionAnimation _offsetAnimation;
+        private ImplicitAnimationCollection _scrollAnimation;
         private bool _compositionUpdate;
         private long? requestId;
 
+        private bool _arranging;
         private Size _extent;
         private Size _viewport;
         private HashSet<Control>? _anchorCandidates;
@@ -326,8 +327,8 @@ namespace CompositionScroll
             base.OnDetachedFromVisualTree(e);
             _interactionTracker?.Dispose();
             _interactionTracker = null;
-            _offsetAnimation?.Dispose();
-            _offsetAnimation = null;
+            _scrollAnimation?.Dispose();
+            _scrollAnimation = null;
         }
 
         /// <summary>
@@ -446,7 +447,7 @@ namespace CompositionScroll
                 EnsureAnchorElementSelection();
 
                 // Do the arrange.
-                base.ArrangeOverride(size);
+                ArrangeOverrideImpl(size, -Offset);
 
                 // If the anchor moved during the arrange, we need to adjust the offset and do another arrange.
                 var anchorShift = TrackAnchor();
@@ -471,19 +472,23 @@ namespace CompositionScroll
 
                     try
                     {
+                        _arranging = true;
                         _compositionUpdate = true;
                         _interactionTracker?.ShiftPositionBy(new Vector3D(anchorShift.X, anchorShift.Y, 0));
                         SetCurrentValue(OffsetProperty, newOffset);
                     }
                     finally
                     {
+                        _arranging = false;
                         _compositionUpdate = false;
                     }
                 }
+
+                ArrangeOverrideImpl(size, -Offset);
             }
             else
             {
-                base.ArrangeOverride(size);
+                ArrangeOverrideImpl(size, -Offset);
             }
 
             Viewport = finalSize;
@@ -522,6 +527,11 @@ namespace CompositionScroll
         {
             if (change.Property == OffsetProperty)
             {
+                if (!_arranging)
+                {
+                    InvalidateArrange();
+                }
+
                 if (!_compositionUpdate)
                 {
                     var offset = change.GetNewValue<Vector>();
@@ -930,14 +940,17 @@ namespace CompositionScroll
             if (_interactionTracker == null)
                 return;
 
-            if (_offsetAnimation == null)
+            if (_scrollAnimation == null)
             {
                 var compositionVisual = ElementComposition.GetElementVisual(this);
 
-                _offsetAnimation = compositionVisual.Compositor.CreateExpressionAnimation();
-                _offsetAnimation.Expression = "-Tracker.Position";
-                _offsetAnimation.Target = "Offset";                
-                _offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
+                var offsetAnimation = compositionVisual.Compositor.CreateExpressionAnimation();
+                offsetAnimation.Expression = "-Tracker.Position";
+                offsetAnimation.Target = "Offset";
+                offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
+
+                _scrollAnimation = compositionVisual.Compositor.CreateImplicitAnimationCollection();
+                _scrollAnimation["Offset"] = offsetAnimation;
             }
         }
 
@@ -951,7 +964,7 @@ namespace CompositionScroll
                 return;
 
             EnsureScrollAnimation();
-            vis.StartAnimation("Offset", _offsetAnimation);            
+            vis.ImplicitAnimations = _scrollAnimation;
         }
 
         private void UpdateInteractionOptions()

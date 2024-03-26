@@ -11,8 +11,6 @@ namespace CompositionScroll.DesktopExample
         [STAThread]
         public static void Main(string[] args)
         {
-            CompositionEffectiveViewportManager.Init();
-
             BuildAvaloniaApp()
                 .StartWithClassicDesktopLifetime(args);
         }
