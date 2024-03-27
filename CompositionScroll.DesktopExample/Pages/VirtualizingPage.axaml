@@ -23,7 +23,7 @@
 
 		<ItemsControl.ItemsPanel>
 			<ItemsPanelTemplate>
-				<VirtualizingStackPanel ClipToBounds="False" />
+				<comp:VirtualizingStackPanel />
 			</ItemsPanelTemplate>
 		</ItemsControl.ItemsPanel>
 
