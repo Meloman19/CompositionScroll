@@ -36,6 +36,32 @@
 
 	<Grid ColumnDefinitions="200, 10, *">
 		<Grid>
+			<ItemsControl x:Name="ItemsControl">
+				<ItemsControl.Template>
+					<ControlTemplate>
+						<ScrollViewer>
+							<ItemsPresenter />
+						</ScrollViewer>
+					</ControlTemplate>
+				</ItemsControl.Template>
+				
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<VirtualizingStackPanel />
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+						<Border Height="200"
+							BorderBrush="Black"
+							BorderThickness="1"
+							CornerRadius="4">
+							<TextBlock VerticalAlignment="Center" Text="{Binding}"/>
+						</Border>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
 			<ListBox x:Name="ListBox"
 					 SelectedIndex="0"
 					 SelectionMode="Single">

@@ -9,7 +9,8 @@
 		<vm:SimpleDataListViewModel />
 	</UserControl.DataContext>
 
-	<ScrollViewer HorizontalScrollBarVisibility="Disabled"
+	<ScrollViewer Theme="{StaticResource ScrollViewerWithMouse}"
+				  HorizontalScrollBarVisibility="Disabled"
 				  Grid.Row="1"
 				  Grid.Column="1">
 		<ItemsRepeater ItemsSource="{Binding Items}">

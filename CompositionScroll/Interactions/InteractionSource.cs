@@ -38,11 +38,11 @@ namespace CompositionScroll.Interactions
 
         public bool IsScrollInertiaEnabled { get; set; } = true;
 
-        public bool MouseScroll { get; set; } = false;
-
-        public bool IsMouseScrollInertiaEnabled { get; set; } = true;
+        public ScrollFeaturesEnum ScrollFeatures { get; set; } = ScrollFeaturesEnum.None;
 
         public double ScrollStartDistance { get; set; } = 10;
+
+        private bool CanAny(ScrollFeaturesEnum feature) => (feature & ScrollFeatures) != ScrollFeaturesEnum.None;
 
         private void Target_PointerWheelChanged(object sender, PointerWheelEventArgs e)
         {
@@ -51,7 +51,12 @@ namespace CompositionScroll.Interactions
 
             var delta = e.Delta;
 
-            if (e.KeyModifiers == KeyModifiers.Shift && MathUtilities.IsZero(delta.X))
+            if (CanAny(ScrollFeaturesEnum.WheelSwapDirections))
+            {
+                delta = new Vector(delta.Y, delta.X);
+            }
+
+            if (e.KeyModifiers == KeyModifiers.Shift)
             {
                 delta = new Vector(delta.Y, delta.X);
             }
@@ -67,7 +72,7 @@ namespace CompositionScroll.Interactions
 
         private void Target_PointerPressed(object sender, PointerPressedEventArgs e)
         {
-            if (e.Pointer.Type == PointerType.Mouse && !MouseScroll)
+            if (e.Pointer.Type == PointerType.Mouse && !CanAny(ScrollFeaturesEnum.MousePressedScroll))
                 return;
 
             EndGesture();
@@ -120,7 +125,7 @@ namespace CompositionScroll.Interactions
 
             if (_scrolling &&
                 IsScrollInertiaEnabled &&
-                (e.Pointer.Type != PointerType.Mouse || IsMouseScrollInertiaEnabled))
+                (e.Pointer.Type != PointerType.Mouse || CanAny(ScrollFeaturesEnum.MousePressedScrollEnertia)))
             {
                 EndGesture(inertia);
             }

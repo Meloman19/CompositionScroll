@@ -4,8 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CompositionScroll.DesktopExample.Pages.ImageViewerPage">
-	<ScrollViewer HorizontalScrollBarVisibility="Visible"
-				  VerticalScrollBarVisibility="Visible"
+	<ScrollViewer Theme="{StaticResource ScrollViewerWithMouse}"
+				  HorizontalScrollBarVisibility="Visible"
+				  VerticalScrollBarVisibility="Visible"				  
 				  Width="500"
 				  Height="500">
 		<Image Width="1200"

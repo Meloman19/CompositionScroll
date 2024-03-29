@@ -9,7 +9,8 @@
 		<vm:SimpleDataListViewModel />
 	</UserControl.DataContext>
 
-	<ItemsControl Grid.Row="1"
+	<ItemsControl Theme="{StaticResource ScrollViewerWithMouse}"
+				  Grid.Row="1"
 				  Grid.Column="2"
 				  ItemsSource="{Binding Items}">
 		<ItemsControl.Template>

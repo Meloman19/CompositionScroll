@@ -49,6 +49,7 @@
 				  Grid.Row="2"
 				  Margin="10, 5">
 					<ScrollViewer x:Name="VerticalSnapsScrollViewer"
+								  Theme="{StaticResource ScrollViewerWithMouse}"
 								  VerticalSnapPointsType="{Binding SnapPointsType}"
 								  VerticalSnapPointsAlignment="{Binding SnapPointsAlignment}"
 								  HorizontalAlignment="Stretch"
@@ -155,6 +156,7 @@
 				  Grid.Row="4"
 				  Margin="10, 10">
 					<ScrollViewer x:Name="HorizontalSnapsScrollViewer"
+								  Theme="{StaticResource ScrollViewerWithSwapDirection}"
 								  HorizontalSnapPointsType="{Binding SnapPointsType}"
 								  HorizontalSnapPointsAlignment="{Binding SnapPointsAlignment}"
 								  HorizontalAlignment="Stretch"

@@ -17,6 +17,15 @@ using System.Linq;
 
 namespace CompositionScroll
 {
+    [Flags]
+    public enum ScrollFeaturesEnum
+    {
+        None = 0,
+        MousePressedScroll = 1,
+        MousePressedScrollEnertia = 2,
+        WheelSwapDirections = 4,
+    }
+
     /// <summary>
     /// Presents a scrolling view of content inside a <see cref="ScrollViewer"/>.
     /// </summary>
@@ -24,12 +33,8 @@ namespace CompositionScroll
     {
         private const double EdgeDetectionTolerance = 0.1;
 
-
-        public static readonly StyledProperty<bool> MousePressedScrollProperty =
-            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(MousePressedScroll), defaultValue: false);
-
-        public static readonly StyledProperty<bool> MousePressedScrollInertiaProperty =
-            AvaloniaProperty.Register<CompositionScrollContentPresenter, bool>(nameof(MousePressedScrollInertia), defaultValue: true);
+        public static readonly AttachedProperty<ScrollFeaturesEnum> ScrollFeaturesProperty =
+            AvaloniaProperty.RegisterAttached<CompositionScrollContentPresenter, Control, ScrollFeaturesEnum>("ScrollFeatures", defaultValue: ScrollFeaturesEnum.None);
 
         /// <summary>
         /// Defines the <see cref="CanHorizontallyScroll"/> property.
@@ -93,6 +98,7 @@ namespace CompositionScroll
         public static readonly StyledProperty<bool> IsScrollChainingEnabledProperty =
             ScrollViewer.IsScrollChainingEnabledProperty.AddOwner<CompositionScrollContentPresenter>();
 
+        private ScrollFeaturesEnum _scrollFeatures = ScrollFeaturesEnum.None;
         private InteractionTracker _interactionTracker;
         private ImplicitAnimationCollection _scrollAnimation;
         private bool _compositionUpdate;
@@ -135,16 +141,14 @@ namespace CompositionScroll
             AddHandler(RequestBringIntoViewEvent, BringIntoViewRequested);
         }
 
-        public bool MousePressedScroll
+        public static ScrollFeaturesEnum GetScrollFeatures(Control element)
         {
-            get => GetValue(MousePressedScrollProperty);
-            set => SetValue(MousePressedScrollProperty, value);
+            return element.GetValue(ScrollFeaturesProperty);
         }
 
-        public bool MousePressedScrollInertia
+        public static void SetScrollFeatures(Control element, ScrollFeaturesEnum value)
         {
-            get => GetValue(MousePressedScrollInertiaProperty);
-            set => SetValue(MousePressedScrollInertiaProperty, value);
+            element.SetValue(ScrollFeaturesProperty, value);
         }
 
         /// <summary>
@@ -570,8 +574,7 @@ namespace CompositionScroll
                 CoerceValue(OffsetProperty);
             }
             else
-            if (change.Property == MousePressedScrollProperty ||
-                change.Property == MousePressedScrollInertiaProperty ||
+            if (change.Property == ScrollFeaturesProperty ||
                 change.Property == CanVerticallyScrollProperty ||
                 change.Property == CanHorizontallyScrollProperty)
                 UpdateInteractionOptions();
@@ -979,8 +982,7 @@ namespace CompositionScroll
             source.CanVerticallyScroll = CanVerticallyScroll;
             source.CanHorizontallyScroll = CanHorizontallyScroll;
             source.IsScrollInertiaEnabled = ScrollViewer.GetIsScrollInertiaEnabled(this);
-            source.MouseScroll = MousePressedScroll;
-            source.IsMouseScrollInertiaEnabled = MousePressedScrollInertia;
+            source.ScrollFeatures = GetScrollFeatures(this);
         }
     }
 }
