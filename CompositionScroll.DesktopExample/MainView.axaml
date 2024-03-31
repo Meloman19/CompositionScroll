@@ -31,6 +31,10 @@
 			<DataTemplate x:Key="Snapping">
 				<pages:SnappingPage />
 			</DataTemplate>
+
+			<DataTemplate x:Key="Parallax">
+				<pages:ParallaxPage />
+			</DataTemplate>
 		</local:TemplateSelector>
 	</UserControl.Resources>
 
@@ -77,6 +81,8 @@
 							 Tag="Image" />
 				<ListBoxItem Content="Snapping"
 							 Tag="Snapping" />
+				<ListBoxItem Content="Parallax"
+							 Tag="Parallax" />
 			</ListBox>
 		</Grid>
 

@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="CompositionScroll.DesktopExample.Pages.ParallaxPage">
+	<Panel>
+		<Image x:Name="Image"
+			   Stretch="UniformToFill"
+			   Source="/Assets/delicate-arch-896885_640.jpg" />
+
+		<ScrollViewer x:Name="ScrollViewer"
+					  Theme="{StaticResource ScrollViewerWithMouse}">
+			<StackPanel>
+				<StackPanel.Styles>
+					<Style Selector="Border">
+						<Setter Property="BorderBrush" Value="Black" />
+						<Setter Property="BorderThickness" Value="1" />
+						<Setter Property="Background" Value="White" />
+						<Setter Property="Margin" Value="40" />
+						<Setter Property="Padding" Value="40" />
+						<Setter Property="CornerRadius" Value="10" />
+					</Style>
+
+					<Style Selector="TextBlock">
+						<Setter Property="HorizontalAlignment" Value="Center" />
+					</Style>
+				</StackPanel.Styles>
+				<Border>
+					<TextBlock Text="Element 0" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 1" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 2" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 3" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 4" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 5" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 6" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 7" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 8" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 9" />
+				</Border>
+				<Border>
+					<TextBlock Text="Element 10" />
+				</Border>
+			</StackPanel>
+		</ScrollViewer>
+	</Panel>
+</UserControl>

@@ -103,6 +103,7 @@ namespace CompositionScroll
         private ImplicitAnimationCollection _scrollAnimation;
         private bool _compositionUpdate;
         private long? requestId;
+        private ScrollPropertiesSource _scrollPropertiesSource;
 
         private bool _arranging;
         private Size _extent;
@@ -333,6 +334,8 @@ namespace CompositionScroll
             _interactionTracker = null;
             _scrollAnimation?.Dispose();
             _scrollAnimation = null;
+            _scrollPropertiesSource?.Dispose();
+            _scrollPropertiesSource = null;
         }
 
         /// <summary>
@@ -574,7 +577,7 @@ namespace CompositionScroll
                 }
                 CoerceValue(OffsetProperty);
             }
-            else if(change.Property == PaddingProperty)
+            else if (change.Property == PaddingProperty)
             {
                 _scrollAnimation = null;
                 UpdateScrollAnimation();
@@ -959,7 +962,7 @@ namespace CompositionScroll
                 offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
                 var margin = Child.Margin + Padding;
                 offsetAnimation.SetVector2Parameter("Margin", new System.Numerics.Vector2((float)margin.Left, (float)margin.Top));
-                    
+
                 _scrollAnimation = compositionVisual.Compositor.CreateImplicitAnimationCollection();
                 _scrollAnimation["Offset"] = offsetAnimation;
             }
@@ -980,7 +983,7 @@ namespace CompositionScroll
 
         private void UpdateInteractionOptions()
         {
-            if(_interactionTracker == null)
+            if (_interactionTracker == null)
                 return;
 
             var source = _interactionTracker.InteractionSource;
@@ -991,6 +994,21 @@ namespace CompositionScroll
             source.CanHorizontallyScroll = CanHorizontallyScroll;
             source.IsScrollInertiaEnabled = ScrollViewer.GetIsScrollInertiaEnabled(this);
             source.ScrollFeatures = GetScrollFeatures(this);
+        }
+
+        public ScrollPropertiesSource GetScrollPropertiesSource() => _scrollPropertiesSource ?? CreateScrollPropertiesSource();
+
+        private ScrollPropertiesSource CreateScrollPropertiesSource()
+        {
+            if (_scrollPropertiesSource == null &&
+                CompositionVisual != null &&
+                _interactionTracker != null)
+            {
+                _scrollPropertiesSource = ScrollPropertiesSource.Create(this, _interactionTracker);
+            }
+           
+
+            return _scrollPropertiesSource;
         }
     }
 }
