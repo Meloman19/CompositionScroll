@@ -15,7 +15,8 @@
 				  ItemsSource="{Binding Items}">
 		<ItemsControl.Template>
 			<ControlTemplate>
-				<ScrollViewer HorizontalScrollBarVisibility="Disabled">
+				<ScrollViewer HorizontalScrollBarVisibility="Disabled"
+							  Padding="70">
 					<ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
 				</ScrollViewer>
 			</ControlTemplate>

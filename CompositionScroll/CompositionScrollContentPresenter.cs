@@ -411,9 +411,10 @@ namespace CompositionScroll
                 return base.MeasureOverride(availableSize);
             }
 
+            var availableWithPadding = availableSize.Deflate(Padding);
             var constraint = new Size(
-                CanHorizontallyScroll ? double.PositiveInfinity : availableSize.Width,
-                CanVerticallyScroll ? double.PositiveInfinity : availableSize.Height);
+                CanHorizontallyScroll ? double.PositiveInfinity : availableWithPadding.Width,
+                CanVerticallyScroll ? double.PositiveInfinity : availableWithPadding.Height);
 
             Child.Measure(constraint);
 
@@ -423,7 +424,7 @@ namespace CompositionScroll
                 UpdateSnapPoints();
             }
 
-            return Child.DesiredSize.Constrain(availableSize);
+            return Child.DesiredSize.Inflate(Padding).Constrain(availableSize);
         }
 
         /// <inheritdoc/>
@@ -440,8 +441,8 @@ namespace CompositionScroll
         private Size ArrangeWithAnchoring(Size finalSize)
         {
             var size = new Size(
-                CanHorizontallyScroll ? Math.Max(Child!.DesiredSize.Width, finalSize.Width) : finalSize.Width,
-                CanVerticallyScroll ? Math.Max(Child!.DesiredSize.Height, finalSize.Height) : finalSize.Height);
+                CanHorizontallyScroll ? Math.Max(Child!.DesiredSize.Inflate(Padding).Width, finalSize.Width) : finalSize.Width,
+                CanVerticallyScroll ? Math.Max(Child!.DesiredSize.Inflate(Padding).Height, finalSize.Height) : finalSize.Height);
 
             var isAnchoring = Offset.X >= EdgeDetectionTolerance || Offset.Y >= EdgeDetectionTolerance;
 
@@ -508,7 +509,7 @@ namespace CompositionScroll
 
         private Size ComputeExtent(Size viewportSize)
         {
-            var childMargin = Child!.Margin;
+            var childMargin = Child!.Margin + Padding;
 
             if (Child.UseLayoutRounding)
             {
@@ -572,6 +573,11 @@ namespace CompositionScroll
                     _owner.Viewport = change.GetNewValue<Size>();
                 }
                 CoerceValue(OffsetProperty);
+            }
+            else if(change.Property == PaddingProperty)
+            {
+                _scrollAnimation = null;
+                UpdateScrollAnimation();
             }
             else
             if (change.Property == ScrollFeaturesProperty ||
@@ -948,10 +954,12 @@ namespace CompositionScroll
                 var compositionVisual = ElementComposition.GetElementVisual(this);
 
                 var offsetAnimation = compositionVisual.Compositor.CreateExpressionAnimation();
-                offsetAnimation.Expression = "-Tracker.Position";
+                offsetAnimation.Expression = "Vector3(Margin.X, Margin.Y, 0) - Vector3(Tracker.Position.X, Tracker.Position.Y, Tracker.Position.Z)";
                 offsetAnimation.Target = "Offset";
                 offsetAnimation.SetReferenceParameter("Tracker", _interactionTracker);
-
+                var margin = Child.Margin + Padding;
+                offsetAnimation.SetVector2Parameter("Margin", new System.Numerics.Vector2((float)margin.Left, (float)margin.Top));
+                    
                 _scrollAnimation = compositionVisual.Compositor.CreateImplicitAnimationCollection();
                 _scrollAnimation["Offset"] = offsetAnimation;
             }
