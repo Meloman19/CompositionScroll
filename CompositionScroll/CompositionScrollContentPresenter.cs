@@ -126,6 +126,8 @@ namespace CompositionScroll
         private bool _isSnapPointsUpdated;
         private InteractionTrackerInertiaStateEnteredArgs _inertiaArgs;
 
+        private readonly InteractionSource _interactionGesture;
+
         /// <summary>
         /// Initializes static members of the <see cref="CompositionScrollContentPresenter"/> class.
         /// </summary>
@@ -140,6 +142,8 @@ namespace CompositionScroll
         public CompositionScrollContentPresenter()
         {
             AddHandler(RequestBringIntoViewEvent, BringIntoViewRequested);
+            _interactionGesture = new InteractionSource(this);
+            GestureRecognizers.Add(_interactionGesture);
         }
 
         public static ScrollFeaturesEnum GetScrollFeatures(Control element)
@@ -322,7 +326,7 @@ namespace CompositionScroll
 
             var compositionVisual = ElementComposition.GetElementVisual(this);
             _interactionTracker = compositionVisual.Compositor.CreateInteractionTracker(this);
-            _interactionTracker.InteractionSource = new InteractionSource(this);
+            _interactionTracker.InteractionSource = _interactionGesture;
             UpdateScrollAnimation();
             UpdateInteractionOptions();
         }
@@ -1006,7 +1010,7 @@ namespace CompositionScroll
             {
                 _scrollPropertiesSource = ScrollPropertiesSource.Create(this, _interactionTracker);
             }
-           
+
 
             return _scrollPropertiesSource;
         }

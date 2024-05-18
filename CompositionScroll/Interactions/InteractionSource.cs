@@ -1,12 +1,11 @@
 ﻿using Avalonia;
 using Avalonia.Input;
 using Avalonia.Input.GestureRecognizers;
-using Avalonia.Utilities;
 using System;
 
 namespace CompositionScroll.Interactions
 {
-    public sealed class InteractionSource
+    public sealed class InteractionSource : GestureRecognizer
     {
         private static int Id = 1;
         private static int GetId() => Id++;
@@ -18,17 +17,10 @@ namespace CompositionScroll.Interactions
         private VelocityTracker _velocityTracker;
         private bool _scrolling;
 
-        public InteractionSource(InputElement target)
+        public InteractionSource(IInputElement target)
         {
-            Target = target;
-            Target.PointerPressed += Target_PointerPressed;
-            Target.PointerMoved += Target_PointerMoved;
-            Target.PointerReleased += Target_PointerReleased;
-            Target.PointerCaptureLost += Target_PointerCaptureLost;
-            Target.PointerWheelChanged += Target_PointerWheelChanged;
+            target.PointerWheelChanged += Target_PointerWheelChanged;
         }
-
-        private InputElement Target { get; }
 
         private InteractionTracker Tracker { get; set; }
 
@@ -70,7 +62,7 @@ namespace CompositionScroll.Interactions
             e.Handled = true;
         }
 
-        private void Target_PointerPressed(object sender, PointerPressedEventArgs e)
+        protected override void PointerPressed(PointerPressedEventArgs e)
         {
             if (e.Pointer.Type == PointerType.Mouse && !CanAny(ScrollFeaturesEnum.MousePressedScroll))
                 return;
@@ -85,7 +77,7 @@ namespace CompositionScroll.Interactions
             BeginUserInteraction();
         }
 
-        private void Target_PointerMoved(object sender, PointerEventArgs e)
+        protected override void PointerMoved(PointerEventArgs e)
         {
             if (e.Pointer != _tracking)
                 return;
@@ -115,7 +107,7 @@ namespace CompositionScroll.Interactions
             }
         }
 
-        private void Target_PointerReleased(object sender, PointerReleasedEventArgs e)
+        protected override void PointerReleased(PointerReleasedEventArgs e)
         {
             if (e.Pointer != _tracking)
                 return;
@@ -135,9 +127,9 @@ namespace CompositionScroll.Interactions
             }
         }
 
-        private void Target_PointerCaptureLost(object sender, PointerCaptureLostEventArgs e)
+        protected override void PointerCaptureLost(IPointer pointer)
         {
-            if (e.Pointer != _tracking)
+            if (pointer != _tracking)
                 return;
 
             EndGesture();

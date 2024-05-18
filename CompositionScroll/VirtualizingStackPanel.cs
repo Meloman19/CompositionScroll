@@ -22,7 +22,7 @@ namespace CompositionScroll
     public class VirtualizingStackPanel : VirtualizingPanel, IScrollSnapPointsInfo
     {
         public static readonly StyledProperty<double> CacheLengthProperty =
-            AvaloniaProperty.Register<VirtualizingStackPanel, double>(nameof(CacheLength), defaultValue: 1);
+            AvaloniaProperty.Register<VirtualizingStackPanel, double>(nameof(CacheLength), defaultValue: 0.5);
 
         public double CacheLength
         {
