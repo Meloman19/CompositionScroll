@@ -92,7 +92,7 @@ namespace CompositionScroll.Interactions
 
                 if (_scrolling)
                 {
-                    e.Pointer.Capture(Target);
+                    Capture(_tracking);
                 }
             }
 
