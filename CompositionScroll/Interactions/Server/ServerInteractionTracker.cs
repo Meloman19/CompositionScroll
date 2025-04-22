@@ -9,9 +9,24 @@ namespace CompositionScroll.Interactions.Server
 {
     internal sealed partial class ServerInteractionTracker : ServerObject, IDisposable, IServerClockItem
     {
-        internal static CompositionProperty IdOfPositionProperty = CompositionProperty.Register();
-        internal static CompositionProperty IdOfMinPositionProperty = CompositionProperty.Register();
-        internal static CompositionProperty IdOfMaxPositionProperty = CompositionProperty.Register();
+        internal static CompositionProperty<Vector3D> IdOfPositionProperty =
+            CompositionProperty.Register<ServerInteractionTracker, Vector3D>(
+                "Position",
+                obj => ((ServerInteractionTracker)obj)._position,
+                (obj, v) => ((ServerInteractionTracker)obj)._position = v,
+                obj => ((ServerInteractionTracker)obj)._position);
+        internal static CompositionProperty IdOfMinPositionProperty =
+            CompositionProperty.Register<ServerInteractionTracker, Vector3D>(
+                "MinPosition",
+                obj => ((ServerInteractionTracker)obj)._minPosition,
+                (obj, v) => ((ServerInteractionTracker)obj)._minPosition = v,
+                obj => ((ServerInteractionTracker)obj)._minPosition);
+        internal static CompositionProperty IdOfMaxPositionProperty =
+            CompositionProperty.Register<ServerInteractionTracker, Vector3D>(
+                "MaxPosition",
+                obj => ((ServerInteractionTracker)obj)._maxPosition,
+                (obj, v) => ((ServerInteractionTracker)obj)._maxPosition = v,
+                obj => ((ServerInteractionTracker)obj)._maxPosition);
 
         private Vector3D _position;
         private Vector3D _minPosition;
@@ -40,31 +55,31 @@ namespace CompositionScroll.Interactions.Server
 
         public Vector3D Position
         {
-            get => GetAnimatedValue(IdOfPositionProperty, ref _position);
+            get => _position;
             private set => SetAnimatedValue(IdOfPositionProperty, out _position, value);
         }
 
         public Vector3D MinPosition
         {
-            get => GetAnimatedValue(IdOfMinPositionProperty, ref _minPosition);
+            get => _minPosition;
             set => SetAnimatedValue(IdOfMinPositionProperty, out _minPosition, value);
         }
 
         public Vector3D MaxPosition
         {
-            get => GetAnimatedValue(IdOfMaxPositionProperty, ref _maxPosition);
+            get => _maxPosition;
             set => SetAnimatedValue(IdOfMaxPositionProperty, out _maxPosition, value);
         }
 
         public void Init(InteractionTracker tracker)
         {
             _interactionTracker = tracker;
-            Compositor.AddToClock(this);
+            Compositor.Animations.AddToClock(this);
         }
 
         public void Dispose()
         {
-            Compositor.RemoveFromClock(this);
+            Compositor.Animations.RemoveFromClock(this);
         }
 
         public void OnTick()
@@ -225,21 +240,6 @@ namespace CompositionScroll.Interactions.Server
                 default:
                     break;
             }
-        }
-
-        public override ExpressionVariant GetPropertyForAnimation(string name)
-        {
-            switch (name)
-            {
-                case nameof(Position):
-                    return Position;
-                case nameof(MinPosition):
-                    return MinPosition;
-                case nameof(MaxPosition):
-                    return MaxPosition;
-            }
-
-            return base.GetPropertyForAnimation(name);
         }
 
         public override CompositionProperty GetCompositionProperty(string fieldName)

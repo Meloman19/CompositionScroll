@@ -1,16 +1,20 @@
-﻿using Avalonia;
+﻿using System;
+using Avalonia;
 using Avalonia.Rendering.Composition.Animations;
 using Avalonia.Rendering.Composition.Expressions;
 using Avalonia.Rendering.Composition.Server;
 using Avalonia.Rendering.Composition.Transport;
-using System;
-using System.Xml.Linq;
 
 namespace CompositionScroll.Interactions.Server
 {
     internal class ServerScrollPropertiesSource : ServerObject, IDisposable
     {
-        internal static CompositionProperty IdOfPositionProperty = CompositionProperty.Register();
+        internal static CompositionProperty<Vector3D> IdOfPositionProperty =
+            CompositionProperty.Register<ServerScrollPropertiesSource, Vector3D>(
+                "Position",
+                obj => ((ServerScrollPropertiesSource)obj)._position,
+                (obj, v) => ((ServerScrollPropertiesSource)obj)._position = v,
+                obj => ((ServerScrollPropertiesSource)obj)._position);
 
         private readonly ServerInteractionTracker _tracker;
 
@@ -26,7 +30,7 @@ namespace CompositionScroll.Interactions.Server
 
         public Vector3D Position
         {
-            get => GetAnimatedValue(IdOfPositionProperty, ref _position);
+            get => _position;
             set => SetAnimatedValue(IdOfPositionProperty, out _position, value);
         }
 
@@ -47,17 +51,6 @@ namespace CompositionScroll.Interactions.Server
 
             SetAnimatedValue(IdOfPositionProperty, ref _position, committedAt, _positionAnimation);
             Activate();
-        }
-
-        public override ExpressionVariant GetPropertyForAnimation(string name)
-        {
-            switch (name)
-            {
-                case nameof(Position):
-                    return Position;
-            }
-
-            return base.GetPropertyForAnimation(name);
         }
 
         public override CompositionProperty GetCompositionProperty(string fieldName)
