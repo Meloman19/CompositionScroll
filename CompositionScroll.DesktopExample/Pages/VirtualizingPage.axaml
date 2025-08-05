@@ -24,7 +24,7 @@
 
 		<ItemsControl.ItemsPanel>
 			<ItemsPanelTemplate>
-				<comp:VirtualizingStackPanel />
+				<VirtualizingStackPanel CacheLength="0.5" />
 			</ItemsPanelTemplate>
 		</ItemsControl.ItemsPanel>
 
