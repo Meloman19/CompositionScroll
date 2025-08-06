@@ -134,6 +134,7 @@ namespace CompositionScroll
         static CompositionScrollContentPresenter()
         {
             ClipToBoundsProperty.OverrideDefaultValue(typeof(CompositionScrollContentPresenter), true);
+            AffectsMeasure<ScrollContentPresenter>(CanHorizontallyScrollProperty, CanVerticallyScrollProperty);
         }
 
         /// <summary>
